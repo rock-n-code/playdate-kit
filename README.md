@@ -1,5 +1,7 @@
 # PlayDate
 
+[![CI](https://github.com/<you>/play-date/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/play-date/actions/workflows/ci.yml)
+
 Swift bindings to the [Playdate](https://play.date) C API.
 
 The Playdate C API is delivered as a `PlaydateAPI*` struct of function
@@ -326,7 +328,19 @@ Shipping a `.pdx` needs the Playdate toolchain on top:
   (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`).
 
 The wrappers are written within the Embedded Swift subset for exactly this
-reason: no Foundation, no reflection, no untyped throws. See Apple's
+reason: no Foundation, no reflection, no untyped throws. That claim is
+enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the
+whole module for `armv7em-none-none-eabi` with Embedded Swift enabled, and
+CI runs it on every push. Running it locally needs a swift.org development
+snapshot toolchain (Xcode's toolchain doesn't ship the bare-metal embedded
+stdlib) and the Arm GNU toolchain headers:
+
+```sh
+SWIFT_BIN=~/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<date>.xctoolchain/usr/bin/swift \
+    Scripts/build-embedded.sh
+```
+
+See Apple's
 [swift-playdate-examples](https://github.com/apple/swift-playdate-examples)
 for a working Makefile/toolchain setup that this library slots into.
 
@@ -336,6 +350,10 @@ for a working Makefile/toolchain setup that this library slots into.
 Scripts/
   install-pkgconfig.sh   One-time setup: points the "playdate" pkg-config
                          module at your SDK installation
+  build-embedded.sh      Compile-only device check: Embedded Swift for
+                         armv7em-none-none-eabi (run by CI)
+  consumer-test.sh       Builds a scratch package depending on play-date
+                         to prove settings propagate to consumers (CI)
 Sources/
   CPlaydate/        System library target: module map + umbrella header
                     importing pd_api.h from the SDK, plus inline shims for
