@@ -1,0 +1,6 @@
+name=Hello Playdate
+author=Röck+Cöde
+description=Minimal example for the play-date Swift bindings
+bundleID=com.rock-n-code.hello-playdate
+version=0.1
+buildNumber=1

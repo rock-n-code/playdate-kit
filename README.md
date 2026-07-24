@@ -4,12 +4,7 @@
 
 Swift bindings to the [Playdate](https://play.date) C API.
 
-The Playdate C API is delivered as a `PlaydateAPI*` struct of function
-pointers that the firmware hands to your game at launch. This package wraps
-that surface in idiomatic Swift: namespaced APIs, wrapper types with
-ownership semantics, closures instead of function-pointer/userdata pairs,
-`OptionSet`s and `enum`s instead of raw constants, and typed `throws` for
-fallible calls.
+The Playdate C API is delivered as a `PlaydateAPI*` struct of function pointers that the firmware hands to your game at launch. This package wraps that surface in idiomatic Swift: namespaced APIs, wrapper types with ownership semantics, closures instead of function-pointer/userdata pairs, `OptionSet`s and `enum`s instead of raw constants, and typed `throws` for fallible calls.
 
 All ten C subsystems are covered:
 
@@ -28,28 +23,20 @@ All ten C subsystems are covered:
 
 ## Requirements
 
-- The [Playdate SDK](https://play.date/dev/) (3.1.1 or later). The SDK is
-  not vendored into this repository.
+- The [Playdate SDK](https://play.date/dev/) (3.1.1 or later). The SDK is not vendored into this repository.
 - Swift 6.4 tools or later.
 
 ### One-time SDK setup
 
-The `CPlaydate` target resolves `pd_api.h` through a `playdate` pkg-config
-module, so the package works as a normal SwiftPM dependency without unsafe
-build flags. Generate the pkg-config file once per machine:
+The `CPlaydate` target resolves `pd_api.h` through a `playdate` pkg-config module, so the package works as a normal SwiftPM dependency without unsafe build flags. Generate the pkg-config file once per machine:
 
 ```sh
 Scripts/install-pkgconfig.sh
 ```
 
-The script locates the SDK via `PLAYDATE_SDK_PATH` (default
-`~/Developer/PlaydateSDK`) and writes `playdate.pc` into a directory SwiftPM
-searches by default (`/usr/local/lib/pkgconfig`). Pass a custom destination
-as an argument if you prefer another location on your `PKG_CONFIG_PATH`.
+The script locates the SDK via `PLAYDATE_SDK_PATH` (default `~/Developer/PlaydateSDK`) and writes `playdate.pc` into a directory SwiftPM searches by default (`/usr/local/lib/pkgconfig`). Pass a custom destination as an argument if you prefer another location on your `PKG_CONFIG_PATH`.
 
-If Xcode had the package open before you ran the script, make it re-read the
-manifest (File ▸ Packages ▸ Reset Package Caches) — Xcode caches package
-resolution and won't notice the new `.pc` file on its own.
+If Xcode had the package open before you ran the script, make it re-read the manifest (File ▸ Packages ▸ Reset Package Caches) — Xcode caches package resolution and won't notice the new `.pc` file on its own.
 
 ## Adding the dependency
 
@@ -70,18 +57,18 @@ targets: [
 
 ## Getting started
 
-A Playdate game has a single C entry point, `eventHandler`. Export it with
-`@_cdecl`, initialize the binding on the first event, and install an update
-callback:
+A Playdate game has a single C entry point, `eventHandler`. Export it with `@_cdecl`, initialize the binding on the first event, and install an update callback:
 
 ```swift
 import CPlaydate
 import PlayDate
 
 @_cdecl("eventHandler")
-func eventHandler(pointer: UnsafeMutableRawPointer,
-                  event: PDSystemEvent,
-                  argument: UInt32) -> Int32 {
+func eventHandler(
+    pointer: UnsafeMutableRawPointer,
+    event: PDSystemEvent,
+    argument: UInt32
+) -> Int32 {
     switch SystemEvent(event: event, argument: argument) {
     case .initialize:
         Playdate.initialize(with: pointer)   // must happen before anything else
@@ -91,6 +78,7 @@ func eventHandler(pointer: UnsafeMutableRawPointer,
     default:
         break
     }
+
     return 0
 }
 
@@ -120,9 +108,7 @@ final class Game {
 }
 ```
 
-`Playdate.initialize(with:)` stores the API pointer once; every wrapper in
-the module uses it from then on. Calling any wrapper before `initialize` is
-a programmer error and will crash.
+`Playdate.initialize(with:)` stores the API pointer once; every wrapper in the module uses it from then on. Calling any wrapper before `initialize` is a programmer error and will crash.
 
 ## Tour of the API
 
@@ -202,10 +188,7 @@ for collision in collisions where collision.other.tag == Tags.brick {
 }
 ```
 
-Sprite callbacks (`setUpdateFunction`, `setDrawFunction`,
-`setCollisionResponseFunction`) receive the Swift wrapper back. The C-level
-sprite userdata slot is reserved by the binding for that recovery — use the
-`userdata` property on `Sprite` for your own per-sprite storage instead.
+Sprite callbacks (`setUpdateFunction`, `setDrawFunction`, `setCollisionResponseFunction`) receive the Swift wrapper back. The C-level sprite userdata slot is reserved by the binding for that recovery — use the `userdata` property on `Sprite` for your own per-sprite storage instead.
 
 ### Sound
 
@@ -295,61 +278,56 @@ try Lua.addFunction(double, name: "mylib.double")
 
 ## Conventions
 
-- **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`,
-  …) live at the top level of the module; only the raw C API bootstrap
-  stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`).
-  On a name collision with another module, qualify with the module name:
-  `PlayDate.System`.
-- **Errors.** Fallible operations use typed throws — `throws(PlaydateError)`
-  generally, `throws(Network.NetError)` for network I/O — so `catch`
-  gives you a concrete type, and no `any Error` existentials are needed.
-- **Ownership.** A wrapper that *creates* a C object frees it on `deinit`;
-  keep the wrapper referenced for as long as you use it. Wrappers vending
-  OS-owned objects (a `Bitmap` from a `BitmapTable`, a track from a
-  `Sequence`, …) don't free them — keep the owner alive instead, as
-  documented on each API. Resources a C object keeps referencing (a sprite's
-  image, a synth's sample, modulators, menu-item option titles) are retained
-  by the wrapper automatically.
-- **Callbacks.** Where the C API provides a userdata slot, closures are
-  supported everywhere and delivered back with the right wrapper. A few C
-  callbacks have no userdata (serial messages, headphone changes, scoreboard
-  completions, `getServerTime`); those track one Swift closure at a time, as
-  noted in their documentation.
-- **Threading.** The Playdate runtime is single-threaded (audio callbacks
-  excepted); statics in the binding are `nonisolated(unsafe)` on that basis.
-  Don't call the API from other threads.
+- **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`, …) live at the top level of the module; only the raw C API bootstrap stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`). On a name collision with another module, qualify with the module name: `PlayDate.System`.
+- **Errors.** Fallible operations use typed throws — `throws(PlaydateError)` generally, `throws(Network.NetError)` for network I/O — so `catch` gives you a concrete type, and no `any Error` existentials are needed.
+- **Ownership.** A wrapper that *creates* a C object frees it on `deinit`; keep the wrapper referenced for as long as you use it. Wrappers vending OS-owned objects (a `Bitmap` from a `BitmapTable`, a track from a `Sequence`, …) don't free them — keep the owner alive instead, as documented on each API. Resources a C object keeps referencing (a sprite's image, a synth's sample, modulators, menu-item option titles) are retained by the wrapper automatically.
+- **Callbacks.** Where the C API provides a userdata slot, closures are supported everywhere and delivered back with the right wrapper. A few C callbacks have no userdata (serial messages, headphone changes, scoreboard
+  completions, `getServerTime`); those track one Swift closure at a time, as noted in their documentation.
+- **Threading.** The Playdate runtime is single-threaded (audio callbacks excepted); statics in the binding are `nonisolated(unsafe)` on that basis. Don't call the API from other threads.
 
 ## Building for the simulator and device
 
-This package builds as a plain Swift library, which is how you develop and
-unit-test game logic on the host (`swift test` works out of the box).
+This package builds as a plain Swift library, which is how you develop and unit-test game logic on the host (`swift test` works out of the box).
 
 Shipping a `.pdx` needs the Playdate toolchain on top:
 
 - **Simulator** builds compile your game as a host dylib placed in the pdx.
-- **Device** builds require Embedded Swift for ARM Cortex-M7
-  (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`).
+- **Device** builds require Embedded Swift for ARM Cortex-M7 (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`).
 
-The wrappers are written within the Embedded Swift subset for exactly this
-reason: no Foundation, no reflection, no untyped throws. That claim is
-enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the
-whole module for `armv7em-none-none-eabi` with Embedded Swift enabled, and
-CI runs it on every push. Running it locally needs a swift.org development
-snapshot toolchain (Xcode's toolchain doesn't ship the bare-metal embedded
-stdlib) and the Arm GNU toolchain headers:
+The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled, and CI runs it on every push. Running it locally needs a swift.org development snapshot toolchain (Xcode's toolchain doesn't ship the bare-metal embedded stdlib) and the Arm GNU toolchain headers:
 
 ```sh
 SWIFT_BIN=~/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<date>.xctoolchain/usr/bin/swift \
     Scripts/build-embedded.sh
 ```
 
-See Apple's
-[swift-playdate-examples](https://github.com/apple/swift-playdate-examples)
-for a working Makefile/toolchain setup that this library slots into.
+See Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples) for a working Makefile/toolchain setup that this library slots into.
+
+## Example
+
+[`Examples/HelloPlaydate`](Examples/HelloPlaydate) is a complete minimal game — bouncing box, crank needle, button handling, a system menu item — that builds into a runnable simulator `.pdx`:
+
+```sh
+cd Examples/HelloPlaydate
+./build.sh
+open -a "$HOME/Developer/PlaydateSDK/bin/Playdate Simulator.app" HelloPlaydate.pdx
+```
+
+## Documentation
+
+The API reference is a DocC catalog. Generate it locally with:
+
+```sh
+swift package generate-documentation --target PlayDate
+```
+
+or browse it with Xcode's documentation viewer (Product ▸ Build Documentation). Pushes to `main` publish the rendered docs to GitHub Pages via `.github/workflows/docs.yml` (enable Pages ▸ Source: GitHub Actions in the repository settings once).
 
 ## Layout
 
 ```
+Examples/
+  HelloPlaydate/    Minimal game buildable into a simulator .pdx
 Scripts/
   install-pkgconfig.sh   One-time setup: points the "playdate" pkg-config
                          module at your SDK installation
@@ -362,12 +340,12 @@ Sources/
                     importing pd_api.h from the SDK, plus inline shims for
                     the variadic log/error functions
   PlayDate/         The Swift bindings, one file per subsystem
-                    (Sound and Graphics are split across several files)
+                    (Sound and Graphics are split across several files),
+                    plus the PlayDate.docc documentation catalog
 Tests/
   PlayDate/         Host-runnable tests for the pure value types
 ```
 
 ## License
 
-MIT — see [LICENSE](LICENSE). The Playdate SDK itself is licensed separately
-by Panic, Inc. and is not distributed with this package.
+MIT — see [LICENSE](LICENSE). The Playdate SDK itself is licensed separately by Panic, Inc. and is not distributed with this package.

@@ -10,6 +10,10 @@ let package = Package(
             targets: ["PlayDate"]
         ),
     ],
+    dependencies: [
+        // Documentation generation only; not linked into the library.
+        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
+    ],
     targets: [
         // The Playdate C API headers, resolved through the "playdate"
         // pkg-config module. Run Scripts/install-pkgconfig.sh once to point
