@@ -11,12 +11,10 @@ internal import CPlaydate
 
 private var scoreboardsAPI: playdate_scoreboards { Playdate.api.scoreboards.pointee }
 
-extension Playdate {
-    /// The scoreboards API for games with online leaderboards.
-    public enum Scoreboards {}
-}
+/// The scoreboards API for games with online leaderboards.
+public enum Scoreboards {}
 
-extension Playdate.Scoreboards {
+extension Scoreboards {
     /// A score on a board.
     public struct Score {
         public let rank: UInt32
@@ -92,22 +90,22 @@ extension Playdate.Scoreboards {
         }
     }
 
-    nonisolated(unsafe) private static var addScoreCompletion: ((Result<Score, Playdate.Error>) -> Void)?
-    nonisolated(unsafe) private static var personalBestCompletion: ((Result<Score, Playdate.Error>) -> Void)?
-    nonisolated(unsafe) private static var boardsCompletion: ((Result<BoardsList, Playdate.Error>) -> Void)?
-    nonisolated(unsafe) private static var scoresCompletion: ((Result<ScoresList, Playdate.Error>) -> Void)?
+    nonisolated(unsafe) private static var addScoreCompletion: ((Result<Score, PlaydateError>) -> Void)?
+    nonisolated(unsafe) private static var personalBestCompletion: ((Result<Score, PlaydateError>) -> Void)?
+    nonisolated(unsafe) private static var boardsCompletion: ((Result<BoardsList, PlaydateError>) -> Void)?
+    nonisolated(unsafe) private static var scoresCompletion: ((Result<ScoresList, PlaydateError>) -> Void)?
 
     /// Submits a score to the board. Returns `false` if the request could
     /// not be started.
     @discardableResult
     public static func addScore(boardID: String, value: UInt32,
-                                completion: @escaping (Result<Score, Playdate.Error>) -> Void) -> Bool {
+                                completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         addScoreCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
             scoreboardsAPI.addScore.unsafelyUnwrapped(cBoardID, value, { score, errorMessage in
-                let completion = Playdate.Scoreboards.addScoreCompletion
-                Playdate.Scoreboards.addScoreCompletion = nil
-                completion?(Playdate.Scoreboards.result(score, errorMessage))
+                let completion = Scoreboards.addScoreCompletion
+                Scoreboards.addScoreCompletion = nil
+                completion?(Scoreboards.result(score, errorMessage))
             }) != 0
         }
     }
@@ -115,26 +113,26 @@ extension Playdate.Scoreboards {
     /// Fetches the current player's best score on the board.
     @discardableResult
     public static func getPersonalBest(boardID: String,
-                                       completion: @escaping (Result<Score, Playdate.Error>) -> Void) -> Bool {
+                                       completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         personalBestCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
             scoreboardsAPI.getPersonalBest.unsafelyUnwrapped(cBoardID, { score, errorMessage in
-                let completion = Playdate.Scoreboards.personalBestCompletion
-                Playdate.Scoreboards.personalBestCompletion = nil
-                completion?(Playdate.Scoreboards.result(score, errorMessage))
+                let completion = Scoreboards.personalBestCompletion
+                Scoreboards.personalBestCompletion = nil
+                completion?(Scoreboards.result(score, errorMessage))
             }) != 0
         }
     }
 
     /// Fetches the list of the game's boards.
     @discardableResult
-    public static func getScoreboards(completion: @escaping (Result<BoardsList, Playdate.Error>) -> Void) -> Bool {
+    public static func getScoreboards(completion: @escaping (Result<BoardsList, PlaydateError>) -> Void) -> Bool {
         boardsCompletion = completion
         return scoreboardsAPI.getScoreboards.unsafelyUnwrapped({ boards, errorMessage in
-            let completion = Playdate.Scoreboards.boardsCompletion
-            Playdate.Scoreboards.boardsCompletion = nil
+            let completion = Scoreboards.boardsCompletion
+            Scoreboards.boardsCompletion = nil
             guard let boards else {
-                completion?(.failure(Playdate.Error(cString: errorMessage)))
+                completion?(.failure(PlaydateError(cString: errorMessage)))
                 return
             }
             let list = BoardsList(boards.pointee)
@@ -146,14 +144,14 @@ extension Playdate.Scoreboards {
     /// Fetches the scores on the board.
     @discardableResult
     public static func getScores(boardID: String,
-                                 completion: @escaping (Result<ScoresList, Playdate.Error>) -> Void) -> Bool {
+                                 completion: @escaping (Result<ScoresList, PlaydateError>) -> Void) -> Bool {
         scoresCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
             scoreboardsAPI.getScores.unsafelyUnwrapped(cBoardID, { scores, errorMessage in
-                let completion = Playdate.Scoreboards.scoresCompletion
-                Playdate.Scoreboards.scoresCompletion = nil
+                let completion = Scoreboards.scoresCompletion
+                Scoreboards.scoresCompletion = nil
                 guard let scores else {
-                    completion?(.failure(Playdate.Error(cString: errorMessage)))
+                    completion?(.failure(PlaydateError(cString: errorMessage)))
                     return
                 }
                 let list = ScoresList(scores.pointee)
@@ -164,9 +162,9 @@ extension Playdate.Scoreboards {
     }
 
     private static func result(_ score: UnsafeMutablePointer<PDScore>?,
-                               _ errorMessage: UnsafePointer<CChar>?) -> Result<Score, Playdate.Error> {
+                               _ errorMessage: UnsafePointer<CChar>?) -> Result<Score, PlaydateError> {
         guard let score else {
-            return .failure(Playdate.Error(cString: errorMessage))
+            return .failure(PlaydateError(cString: errorMessage))
         }
         let value = Score(score.pointee)
         scoreboardsAPI.freeScore.unsafelyUnwrapped(score)

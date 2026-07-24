@@ -11,12 +11,10 @@ internal import CPlaydate
 
 private var jsonAPI: playdate_json { Playdate.api.json.pointee }
 
-extension Playdate {
-    /// The JSON API: decoding to and encoding from a `Value` tree.
-    public enum JSON {}
-}
+/// The JSON API: decoding to and encoding from a `Value` tree.
+public enum JSON {}
 
-extension Playdate.JSON {
+extension JSON {
     /// A decoded JSON value.
     public indirect enum Value {
         case null
@@ -88,12 +86,12 @@ extension Playdate.JSON {
         decoder.didDecodeTableValue = { decoder, key, value in
             guard let userdata = decoder?.pointee.userdata else { return }
             let context = Unmanaged<DecodeContext>.fromOpaque(userdata).takeUnretainedValue()
-            context.append(Playdate.JSON.convert(value), key: String(playdateCString: key))
+            context.append(JSON.convert(value), key: String(playdateCString: key))
         }
         decoder.didDecodeArrayValue = { decoder, _, value in
             guard let userdata = decoder?.pointee.userdata else { return }
             let context = Unmanaged<DecodeContext>.fromOpaque(userdata).takeUnretainedValue()
-            context.append(Playdate.JSON.convert(value), key: nil)
+            context.append(JSON.convert(value), key: nil)
         }
         decoder.didDecodeSublist = { decoder, _, _ in
             guard let userdata = decoder?.pointee.userdata else { return nil }
@@ -107,7 +105,7 @@ extension Playdate.JSON {
     }
 
     /// Decodes a JSON string into a `Value` tree.
-    public static func decode(_ jsonString: String) throws(Playdate.Error) -> Value {
+    public static func decode(_ jsonString: String) throws(PlaydateError) -> Value {
         let context = DecodeContext()
         let unmanaged = Unmanaged.passUnretained(context)
         var decoder = makeDecoder(context: unmanaged)
@@ -124,14 +122,14 @@ extension Playdate.JSON {
     }
 
     /// Decodes JSON read from an open file into a `Value` tree.
-    public static func decode(file: Playdate.File.Handle) throws(Playdate.Error) -> Value {
+    public static func decode(file: File.Handle) throws(PlaydateError) -> Value {
         let context = DecodeContext()
         var decoder = makeDecoder(context: Unmanaged.passUnretained(context))
         var reader = json_reader()
         reader.userdata = Unmanaged.passUnretained(file).toOpaque()
         reader.read = { userdata, buffer, size in
             guard let userdata, let buffer else { return -1 }
-            let file = Unmanaged<Playdate.File.Handle>.fromOpaque(userdata).takeUnretainedValue()
+            let file = Unmanaged<File.Handle>.fromOpaque(userdata).takeUnretainedValue()
             let destination = UnsafeMutableRawBufferPointer(start: buffer, count: Int(size))
             do {
                 let count = try file.read(into: destination)
@@ -153,13 +151,13 @@ extension Playdate.JSON {
     }
 
     /// Opens and decodes the JSON file at `path`.
-    public static func decodeFile(at path: String) throws(Playdate.Error) -> Value {
-        let file = try Playdate.File.Handle(path: path, mode: [.read, .readData])
+    public static func decodeFile(at path: String) throws(PlaydateError) -> Value {
+        let file = try File.Handle(path: path, mode: [.read, .readData])
         return try decode(file: file)
     }
 
-    private static func decodeError(_ context: DecodeContext) -> Playdate.Error {
-        Playdate.Error(message: "\(context.errorMessage ?? "JSON decode failed") (line \(context.errorLine))")
+    private static func decodeError(_ context: DecodeContext) -> PlaydateError {
+        PlaydateError(message: "\(context.errorMessage ?? "JSON decode failed") (line \(context.errorLine))")
     }
 
     // MARK: - Encoding

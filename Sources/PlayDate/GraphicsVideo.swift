@@ -9,7 +9,7 @@ internal import CPlaydate
 private var videoAPI: playdate_video { gfx.video.pointee }
 private var streamAPI: playdate_videostream { gfx.videostream.pointee }
 
-extension Playdate.Graphics {
+extension Graphics {
     /// Plays .pdv video files. Wraps `LCDVideoPlayer`.
     public final class VideoPlayer {
         let pointer: OpaquePointer
@@ -23,10 +23,10 @@ extension Playdate.Graphics {
         }
 
         /// Opens the .pdv file at `path`.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             let pointer = path.withPlaydateCString { videoAPI.loadVideo.unsafelyUnwrapped($0) }
             guard let pointer else {
-                throw Playdate.Error(message: "unable to load video: \(path)")
+                throw PlaydateError(message: "unable to load video: \(path)")
             }
             self.init(pointer: pointer, isOwned: true)
         }
@@ -38,9 +38,9 @@ extension Playdate.Graphics {
         }
 
         /// Sets the bitmap the video renders into.
-        public func setContext(_ context: Bitmap) throws(Playdate.Error) {
+        public func setContext(_ context: Bitmap) throws(PlaydateError) {
             guard videoAPI.setContext.unsafelyUnwrapped(pointer, context.pointer) != 0 else {
-                throw Playdate.Error(message: error ?? "unable to set video context")
+                throw PlaydateError(message: error ?? "unable to set video context")
             }
             retainedContext = context
         }
@@ -58,9 +58,9 @@ extension Playdate.Graphics {
         }
 
         /// Renders frame `frame` into the current context.
-        public func renderFrame(_ frame: Int) throws(Playdate.Error) {
+        public func renderFrame(_ frame: Int) throws(PlaydateError) {
             guard videoAPI.renderFrame.unsafelyUnwrapped(pointer, Int32(frame)) != 0 else {
-                throw Playdate.Error(message: error ?? "unable to render frame \(frame)")
+                throw PlaydateError(message: error ?? "unable to render frame \(frame)")
             }
         }
 
@@ -100,27 +100,27 @@ extension Playdate.Graphics {
         }
 
         /// Streams from an open file.
-        public func setFile(_ file: Playdate.File.Handle) {
+        public func setFile(_ file: File.Handle) {
             retainedSource = file
             streamAPI.setFile.unsafelyUnwrapped(pointer, file.pointer)
         }
 
         /// Streams from an HTTP connection.
-        public func setHTTPConnection(_ connection: Playdate.Network.HTTPConnection) {
+        public func setHTTPConnection(_ connection: Network.HTTPConnection) {
             retainedSource = connection
             streamAPI.setHTTPConnection.unsafelyUnwrapped(pointer, connection.pointer)
         }
 
         /// Streams from a TCP connection.
-        public func setTCPConnection(_ connection: Playdate.Network.TCPConnection) {
+        public func setTCPConnection(_ connection: Network.TCPConnection) {
             retainedSource = connection
             streamAPI.setTCPConnection.unsafelyUnwrapped(pointer, connection.pointer)
         }
 
         /// The player used for the stream's audio track. Owned by the stream.
-        public var filePlayer: Playdate.Sound.FilePlayer? {
+        public var filePlayer: Sound.FilePlayer? {
             guard let player = streamAPI.getFilePlayer.unsafelyUnwrapped(pointer) else { return nil }
-            return Playdate.Sound.FilePlayer(pointer: player, isOwned: false)
+            return Sound.FilePlayer(pointer: player, isOwned: false)
         }
 
         /// The player used for the stream's video track. Owned by the stream.

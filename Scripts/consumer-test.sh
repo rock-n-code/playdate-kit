@@ -37,8 +37,8 @@ import CPlaydate
 import PlayDate
 
 // Touch a type from each module to prove both import and link.
-let event = Playdate.SystemEvent(event: kEventInit, argument: 0)
-let buttons: Playdate.System.Buttons = [.a, .up]
+let event = SystemEvent(event: kEventInit, argument: 0)
+let buttons: System.Buttons = [.a, .up]
 print(event != nil && buttons.contains(.a) ? "ok" : "broken")
 EOF
 

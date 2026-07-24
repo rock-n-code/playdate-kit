@@ -8,7 +8,7 @@ internal import CPlaydate
 
 private var effectAPI: playdate_sound_effect { snd.effect.pointee }
 
-extension Playdate.Sound {
+extension Sound {
     /// An effect that processes a channel's audio: the base class of the
     /// built-in effects. Wraps `SoundEffect`.
     public class Effect {

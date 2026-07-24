@@ -13,14 +13,10 @@ private var networkAPI: playdate_network { Playdate.api.network.pointee }
 private var httpAPI: playdate_http { networkAPI.http.pointee }
 private var tcpAPI: playdate_tcp { networkAPI.tcp.pointee }
 
-extension Playdate {
-    /// The network API: wifi status, HTTP, and TCP.
-    public enum Network {}
-}
+/// The network API: wifi status, HTTP, and TCP.
+public enum Network {}
 
-extension Playdate.Network {
-    public typealias AccessReply = Playdate.AccessReply
-
+extension Network {
     /// A network error code (`PDNetErr`).
     public enum NetError: Int32, Swift.Error, Sendable {
         case noDevice = -1
@@ -79,9 +75,9 @@ extension Playdate.Network {
         setEnabledCompletion = completion
         if completion != nil {
             networkAPI.setEnabled.unsafelyUnwrapped(enabled, { error in
-                let completion = Playdate.Network.setEnabledCompletion
-                Playdate.Network.setEnabledCompletion = nil
-                completion?(Playdate.Network.optionalError(error))
+                let completion = Network.setEnabledCompletion
+                Network.setEnabledCompletion = nil
+                completion?(Network.optionalError(error))
             })
         } else {
             networkAPI.setEnabled.unsafelyUnwrapped(enabled, nil)
@@ -140,7 +136,7 @@ extension Playdate.Network {
         public static func requestAccess(server: String, port: Int = 443, useSSL: Bool = true,
                                          purpose: String? = nil,
                                          completion: @escaping (Bool) -> Void) -> AccessReply {
-            Playdate.Network.requestAccess(
+            Network.requestAccess(
                 rawRequest: { httpAPI.requestAccess.unsafelyUnwrapped($0, $1, $2, $3, $4, $5) },
                 server: server, port: port, useSSL: useSSL, purpose: purpose,
                 completion: completion)
@@ -205,7 +201,7 @@ extension Playdate.Network {
                     httpAPI.get.unsafelyUnwrapped(pointer, cPath, cHeaders, headers.utf8.count)
                 }
             }
-            try Playdate.Network.check(error)
+            try Network.check(error)
         }
 
         /// Sends a POST request for `path` with the given body.
@@ -220,7 +216,7 @@ extension Playdate.Network {
                     }
                 }
             }
-            try Playdate.Network.check(error)
+            try Network.check(error)
         }
 
         /// Sends a request with an arbitrary HTTP method.
@@ -238,14 +234,14 @@ extension Playdate.Network {
                     }
                 }
             }
-            try Playdate.Network.check(error)
+            try Network.check(error)
         }
 
         // MARK: Response
 
         /// The last error on the connection, if any.
         public var error: NetError? {
-            Playdate.Network.optionalError(httpAPI.getError.unsafelyUnwrapped(pointer))
+            Network.optionalError(httpAPI.getError.unsafelyUnwrapped(pointer))
         }
 
         /// The number of bytes read of the current response, and the total
@@ -380,7 +376,7 @@ extension Playdate.Network {
         public static func requestAccess(server: String, port: Int, useSSL: Bool = true,
                                          purpose: String? = nil,
                                          completion: @escaping (Bool) -> Void) -> AccessReply {
-            Playdate.Network.requestAccess(
+            Network.requestAccess(
                 rawRequest: { tcpAPI.requestAccess.unsafelyUnwrapped($0, $1, $2, $3, $4, $5) },
                 server: server, port: port, useSSL: useSSL, purpose: purpose,
                 completion: completion)
@@ -410,7 +406,7 @@ extension Playdate.Network {
 
         /// The last error on the connection, if any.
         public var error: NetError? {
-            Playdate.Network.optionalError(tcpAPI.getError.unsafelyUnwrapped(pointer))
+            Network.optionalError(tcpAPI.getError.unsafelyUnwrapped(pointer))
         }
 
         /// The time to wait for the connection to open, in milliseconds.
@@ -425,14 +421,14 @@ extension Playdate.Network {
                 guard let wrapper = TCPConnection.wrapper(for: connection) else { return }
                 let completion = wrapper.openCompletion
                 wrapper.openCompletion = nil
-                completion?(wrapper, Playdate.Network.optionalError(error))
+                completion?(wrapper, Network.optionalError(error))
             }, nil)
-            try Playdate.Network.check(error)
+            try Network.check(error)
         }
 
         /// Closes the connection.
         public func close() throws(NetError) {
-            try Playdate.Network.check(tcpAPI.close.unsafelyUnwrapped(pointer))
+            try Network.check(tcpAPI.close.unsafelyUnwrapped(pointer))
         }
 
         /// Called when the connection closes, with the reason if it closed
@@ -442,7 +438,7 @@ extension Playdate.Network {
             if callback != nil {
                 tcpAPI.setConnectionClosedCallback.unsafelyUnwrapped(pointer, { connection, error in
                     guard let wrapper = TCPConnection.wrapper(for: connection) else { return }
-                    wrapper.connectionClosedCallback?(wrapper, Playdate.Network.optionalError(error))
+                    wrapper.connectionClosedCallback?(wrapper, Network.optionalError(error))
                 })
             } else {
                 tcpAPI.setConnectionClosedCallback.unsafelyUnwrapped(pointer, nil)

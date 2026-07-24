@@ -5,7 +5,7 @@
 
 internal import CPlaydate
 
-extension Playdate.Sound {
+extension Sound {
     /// A source of audio: the base class of `FilePlayer`, `SamplePlayer`,
     /// `Synth`, `DelayLineTap`, and `CallbackSource`. Wraps `SoundSource`.
     public class Source {
@@ -116,7 +116,7 @@ extension Playdate.Sound {
         }
 
         /// Creates a player and loads the audio file at `path`.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             self.init()
             try load(path: path)
         }
@@ -128,12 +128,12 @@ extension Playdate.Sound {
         }
 
         /// Prepares the player to stream the file at `path`.
-        public func load(path: String) throws(Playdate.Error) {
+        public func load(path: String) throws(PlaydateError) {
             let loaded = path.withPlaydateCString {
                 FilePlayer.api.loadIntoPlayer.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
-                throw Playdate.Error(message: "unable to load audio file: \(path)")
+                throw PlaydateError(message: "unable to load audio file: \(path)")
             }
         }
 
@@ -266,10 +266,10 @@ extension Playdate.Sound {
         }
 
         /// Loads the wav or aiff file at `path`.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             let pointer = path.withPlaydateCString { AudioSample.api.load.unsafelyUnwrapped($0) }
             guard let pointer else {
-                throw Playdate.Error(message: "unable to load sample: \(path)")
+                throw PlaydateError(message: "unable to load sample: \(path)")
             }
             self.init(pointer: pointer, isOwned: true)
         }
@@ -294,12 +294,12 @@ extension Playdate.Sound {
         }
 
         /// Loads the file at `path` into this sample's buffer.
-        public func load(path: String) throws(Playdate.Error) {
+        public func load(path: String) throws(PlaydateError) {
             let loaded = path.withPlaydateCString {
                 AudioSample.api.loadIntoSample.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
-                throw Playdate.Error(message: "unable to load sample: \(path)")
+                throw PlaydateError(message: "unable to load sample: \(path)")
             }
         }
 
@@ -346,7 +346,7 @@ extension Playdate.Sound {
         }
 
         /// Creates a player for the sample at `path`.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             self.init()
             sample = try AudioSample(path: path)
         }

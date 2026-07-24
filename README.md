@@ -15,16 +15,16 @@ All ten C subsystems are covered:
 
 | Namespace | Wraps | Highlights |
 |---|---|---|
-| `Playdate.System` | `playdate->system` | input, time, menu items, logging |
-| `Playdate.Display` | `playdate->display` | refresh rate, scale, mosaic, flip |
-| `Playdate.Graphics` | `playdate->graphics` | drawing, `Bitmap`, `Font`, `TileMap`, video |
-| `Playdate.Sprite` | `playdate->sprite` | display list, collisions, custom draw |
-| `Playdate.Sound` | `playdate->sound` | players, synths, sequences, effects |
-| `Playdate.File` | `playdate->file` | `Handle`, directory operations |
-| `Playdate.JSON` | `playdate->json` | `Value` tree decode/encode |
-| `Playdate.Lua` | `playdate->lua` | C functions, classes, stack access |
-| `Playdate.Scoreboards` | `playdate->scoreboards` | online leaderboards |
-| `Playdate.Network` | `playdate->network` | wifi, `HTTPConnection`, `TCPConnection` |
+| `System` | `playdate->system` | input, time, menu items, logging |
+| `Display` | `playdate->display` | refresh rate, scale, mosaic, flip |
+| `Graphics` | `playdate->graphics` | drawing, `Bitmap`, `Font`, `TileMap`, video |
+| `Sprite` | `playdate->sprite` | display list, collisions, custom draw |
+| `Sound` | `playdate->sound` | players, synths, sequences, effects |
+| `File` | `playdate->file` | `Handle`, directory operations |
+| `JSON` | `playdate->json` | `Value` tree decode/encode |
+| `Lua` | `playdate->lua` | C functions, classes, stack access |
+| `Scoreboards` | `playdate->scoreboards` | online leaderboards |
+| `Network` | `playdate->network` | wifi, `HTTPConnection`, `TCPConnection` |
 
 ## Requirements
 
@@ -82,7 +82,7 @@ import PlayDate
 func eventHandler(pointer: UnsafeMutableRawPointer,
                   event: PDSystemEvent,
                   argument: UInt32) -> Int32 {
-    switch Playdate.SystemEvent(event: event, argument: argument) {
+    switch SystemEvent(event: event, argument: argument) {
     case .initialize:
         Playdate.initialize(with: pointer)   // must happen before anything else
         Game.shared.start()
@@ -97,25 +97,25 @@ func eventHandler(pointer: UnsafeMutableRawPointer,
 final class Game {
     nonisolated(unsafe) static let shared = Game()
 
-    var player = Playdate.Sprite()
+    var player = Sprite()
 
     func start() {
-        Playdate.Display.setRefreshRate(50)
+        Display.setRefreshRate(50)
 
-        Playdate.System.setUpdateCallback {
+        System.setUpdateCallback {
             self.update()
             return true   // true = redraw the display this frame
         }
     }
 
     func update() {
-        let (_, pushed, _) = Playdate.System.buttonState
+        let (_, pushed, _) = System.buttonState
         if pushed.contains(.a) {
-            Playdate.System.log("A pressed at \(Playdate.System.currentTimeMilliseconds)ms")
+            System.log("A pressed at \(System.currentTimeMilliseconds)ms")
         }
 
-        Playdate.Sprite.updateAndDrawAll()
-        Playdate.System.drawFPS()
+        Sprite.updateAndDrawAll()
+        System.drawFPS()
     }
 }
 ```
@@ -130,68 +130,68 @@ a programmer error and will crash.
 
 ```swift
 // Buttons are an OptionSet: current (held), pushed and released this frame.
-let (current, pushed, released) = Playdate.System.buttonState
+let (current, pushed, released) = System.buttonState
 if current.contains([.b, .down]) { /* charge shot */ }
 
 // Crank.
-if !Playdate.System.isCrankDocked {
-    aim(degrees: Playdate.System.crankAngle)
-    spin(by: Playdate.System.crankChange)
+if !System.isCrankDocked {
+    aim(degrees: System.crankAngle)
+    spin(by: System.crankChange)
 }
 
 // Accelerometer is a peripheral you enable first.
-Playdate.System.setPeripheralsEnabled(.accelerometer)
-let (x, y, z) = Playdate.System.accelerometer
+System.setPeripheralsEnabled(.accelerometer)
+let (x, y, z) = System.accelerometer
 
 // System menu items take closures; the binding keeps them alive until removed.
-Playdate.System.addCheckmarkMenuItem(title: "music", isChecked: true) { item in
+System.addCheckmarkMenuItem(title: "music", isChecked: true) { item in
     Audio.musicEnabled = item.isChecked
 }
-Playdate.System.addOptionsMenuItem(title: "mode", options: ["easy", "hard"]) { item in
+System.addOptionsMenuItem(title: "mode", options: ["easy", "hard"]) { item in
     Game.shared.difficulty = item.value
 }
 
 // Logging goes to the simulator console or device serial.
-Playdate.System.log("spawned \(count) enemies")
-Playdate.System.error("unrecoverable")   // stops execution
+System.log("spawned \(count) enemies")
+System.error("unrecoverable")   // stops execution
 ```
 
 ### Graphics: drawing, bitmaps, fonts
 
-Fallible loads (`Bitmap(path:)`, `Font(path:)`, …) throw `Playdate.Error`,
+Fallible loads (`Bitmap(path:)`, `Font(path:)`, …) throw `PlaydateError`,
 which carries the message produced by the OS:
 
 ```swift
-let font = try Playdate.Graphics.Font(path: "fonts/Asheville-Sans-14-Bold.pft")
-Playdate.Graphics.setFont(font)
+let font = try Graphics.Font(path: "fonts/Asheville-Sans-14-Bold.pft")
+Graphics.setFont(font)
 
-Playdate.Graphics.clear(color: .white)
-Playdate.Graphics.fillRect(x: 0, y: 0, width: 400, height: 32, color: .black)
-Playdate.Graphics.drawText("Hëllo, Playdate", x: 8, y: 8)
+Graphics.clear(color: .white)
+Graphics.fillRect(x: 0, y: 0, width: 400, height: 32, color: .black)
+Graphics.drawText("Hëllo, Playdate", x: 8, y: 8)
 
 // Colors are solid or 8×8 patterns.
-let checker = Playdate.Graphics.Pattern(rows: (0xAA, 0x55, 0xAA, 0x55,
-                                               0xAA, 0x55, 0xAA, 0x55))
-Playdate.Graphics.fillEllipse(x: 100, y: 100, width: 64, height: 64,
-                              color: .pattern(checker))
+let checker = Graphics.Pattern(rows: (0xAA, 0x55, 0xAA, 0x55,
+                                      0xAA, 0x55, 0xAA, 0x55))
+Graphics.fillEllipse(x: 100, y: 100, width: 64, height: 64,
+                     color: .pattern(checker))
 
 // Bitmaps draw themselves; draw into one by pushing it as the context.
-let logo = try Playdate.Graphics.Bitmap(path: "images/logo")
+let logo = try Graphics.Bitmap(path: "images/logo")
 logo.draw(x: 168, y: 88)
 
-let canvas = Playdate.Graphics.Bitmap(width: 64, height: 64)
-Playdate.Graphics.pushContext(canvas)
-Playdate.Graphics.drawLine(x1: 0, y1: 0, x2: 63, y2: 63, width: 2, color: .black)
-Playdate.Graphics.popContext()
+let canvas = Graphics.Bitmap(width: 64, height: 64)
+Graphics.pushContext(canvas)
+Graphics.drawLine(x1: 0, y1: 0, x2: 63, y2: 63, width: 2, color: .black)
+Graphics.popContext()
 ```
 
 ### Sprites and collisions
 
 ```swift
-let ball = Playdate.Sprite()
-ball.setImage(try Playdate.Graphics.Bitmap(path: "images/ball"))
+let ball = Sprite()
+ball.setImage(try Graphics.Bitmap(path: "images/ball"))
 ball.moveTo(x: 200, y: 120)
-ball.collideRect = Playdate.Rect(x: 0, y: 0, width: 16, height: 16)
+ball.collideRect = Rect(x: 0, y: 0, width: 16, height: 16)
 ball.setCollisionResponseFunction { _, _ in .bounce }
 ball.add()   // adds to the display list; the binding keeps it alive while added
 
@@ -211,29 +211,29 @@ sprite userdata slot is reserved by the binding for that recovery — use the
 
 ```swift
 // Stream music from disk.
-let music = try Playdate.Sound.FilePlayer(path: "audio/theme")
+let music = try Sound.FilePlayer(path: "audio/theme")
 music.play(repeat: 0)   // 0 = loop forever
 
 // Play short effects from memory.
-let blip = try Playdate.Sound.SamplePlayer(path: "audio/blip")
+let blip = try Sound.SamplePlayer(path: "audio/blip")
 blip.play()
 
 // Synthesis.
-let synth = Playdate.Sound.Synth(waveform: .square)
+let synth = Sound.Synth(waveform: .square)
 synth.setAttackTime(0.01)
 synth.setReleaseTime(0.2)
-synth.playMIDINote(Playdate.Sound.noteC4, velocity: 0.8, length: 0.5)
+synth.playMIDINote(Sound.noteC4, velocity: 0.8, length: 0.5)
 
 // Channels mix sources and effects.
-let channel = Playdate.Sound.Channel()
+let channel = Sound.Channel()
 channel.add()
 channel.addSource(synth)
-let filter = Playdate.Sound.TwoPoleFilter(kind: .lowPass)
+let filter = Sound.TwoPoleFilter(kind: .lowPass)
 filter.setFrequency(800)
 channel.addEffect(filter)
 
 // Anything that takes a modulator accepts any SignalValue (LFO, Envelope, …).
-let wobble = Playdate.Sound.LFO(shape: .sine)
+let wobble = Sound.LFO(shape: .sine)
 wobble.setRate(2)
 synth.frequencyModulator = wobble
 ```
@@ -242,20 +242,20 @@ synth.frequencyModulator = wobble
 
 ```swift
 // Paths resolve against the game's Data directory and pdx per the open mode.
-let save = try Playdate.File.Handle(path: "save.json", mode: .write)
-try save.write(Playdate.JSON.encode(.table([
+let save = try File.Handle(path: "save.json", mode: .write)
+try save.write(JSON.encode(.table([
     "level": .int(3),
     "name": .string("Röck"),
 ])))
 try save.close()
 
-let loaded = try Playdate.JSON.decodeFile(at: "save.json")
+let loaded = try JSON.decodeFile(at: "save.json")
 if case .table(let entries) = loaded, case .int(let level)? = entries["level"] {
     Game.shared.level = level
 }
 
-try Playdate.File.listFiles(at: "replays") { name in
-    Playdate.System.log("found \(name)")
+try File.listFiles(at: "replays") { name in
+    System.log("found \(name)")
 }
 ```
 
@@ -264,14 +264,14 @@ try Playdate.File.listFiles(at: "replays") { name in
 Network access requires user permission per server:
 
 ```swift
-let reply = Playdate.Network.HTTPConnection.requestAccess(
+let reply = Network.HTTPConnection.requestAccess(
     server: "example.com", purpose: "Fetching daily puzzles") { allowed in
     guard allowed else { return }
     Puzzles.fetch()
 }
 
 func fetch() {
-    guard let connection = Playdate.Network.HTTPConnection(server: "example.com") else { return }
+    guard let connection = Network.HTTPConnection(server: "example.com") else { return }
     connection.setRequestCompleteCallback { connection in
         let body = try? connection.read(length: connection.bytesAvailable)
         // … keep `connection` referenced somewhere until this fires …
@@ -286,19 +286,22 @@ Lua callbacks are C function pointers with no context, so they must be
 `@convention(c)` functions rather than capturing closures:
 
 ```swift
-let double: Playdate.Lua.CFunction = { _ in
-    Playdate.Lua.push(Playdate.Lua.intArgument(at: 1) * 2)
+let double: Lua.CFunction = { _ in
+    Lua.push(Lua.intArgument(at: 1) * 2)
     return 1   // number of return values pushed
 }
-try Playdate.Lua.addFunction(double, name: "mylib.double")
+try Lua.addFunction(double, name: "mylib.double")
 ```
 
 ## Conventions
 
-- **Namespaces.** Everything lives under `Playdate`. Games that find that
-  verbose can alias: `typealias Graphics = Playdate.Graphics`.
-- **Errors.** Fallible operations use typed throws — `throws(Playdate.Error)`
-  generally, `throws(Playdate.Network.NetError)` for network I/O — so `catch`
+- **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`,
+  …) live at the top level of the module; only the raw C API bootstrap
+  stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`).
+  On a name collision with another module, qualify with the module name:
+  `PlayDate.System`.
+- **Errors.** Fallible operations use typed throws — `throws(PlaydateError)`
+  generally, `throws(Network.NetError)` for network I/O — so `catch`
   gives you a concrete type, and no `any Error` existentials are needed.
 - **Ownership.** A wrapper that *creates* a C object frees it on `deinit`;
   keep the wrapper referenced for as long as you use it. Wrappers vending

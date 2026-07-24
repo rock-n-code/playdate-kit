@@ -9,12 +9,10 @@ internal import CPlaydate
 
 var snd: playdate_sound { Playdate.api.sound.pointee }
 
-extension Playdate {
-    /// The sound API: channels, players, synths, sequences, and effects.
-    public enum Sound {}
-}
+/// The sound API: channels, players, synths, sequences, and effects.
+public enum Sound {}
 
-extension Playdate.Sound {
+extension Sound {
     /// A note as a MIDI note number, where 60 is middle C. Fractional values
     /// are valid.
     public typealias MIDINote = Float
@@ -60,12 +58,9 @@ extension Playdate.Sound {
         case headset = 2
     }
 
-    /// The user's answer to a permission request.
-    public typealias AccessReply = Playdate.AccessReply
-
     /// The most recent sound error as a thrown error.
-    static func lastError() -> Playdate.Error {
-        Playdate.Error(cString: snd.getError.unsafelyUnwrapped())
+    static func lastError() -> PlaydateError {
+        PlaydateError(cString: snd.getError.unsafelyUnwrapped())
     }
 
     // MARK: - Top-level functions
@@ -96,7 +91,7 @@ extension Playdate.Sound {
         if callback != nil {
             return snd.setMicCallback.unsafelyUnwrapped({ _, buffer, length in
                 let samples = UnsafeMutableBufferPointer(start: buffer, count: Int(length))
-                return Playdate.Sound.micCallback?(samples) == true ? 1 : 0
+                return Sound.micCallback?(samples) == true ? 1 : 0
             }, nil, CPlaydate.MicSource(source.rawValue)) != 0
         } else {
             return snd.setMicCallback.unsafelyUnwrapped(nil, nil, CPlaydate.MicSource(source.rawValue)) != 0
@@ -147,7 +142,7 @@ extension Playdate.Sound {
         headphoneChangeCallback = callback
         if callback != nil {
             snd.getHeadphoneState.unsafelyUnwrapped(nil, nil, { headphone, mic in
-                Playdate.Sound.headphoneChangeCallback?(headphone != 0, mic != 0)
+                Sound.headphoneChangeCallback?(headphone != 0, mic != 0)
             })
         } else {
             snd.getHeadphoneState.unsafelyUnwrapped(nil, nil, nil)

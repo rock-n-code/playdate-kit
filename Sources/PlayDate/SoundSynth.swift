@@ -5,7 +5,7 @@
 
 internal import CPlaydate
 
-extension Playdate.Sound {
+extension Sound {
     /// A synthesizer voice. Wraps `PDSynth`.
     public final class Synth: Source {
         private static var api: playdate_sound_synth { snd.synth.pointee }
@@ -109,11 +109,11 @@ extension Playdate.Sound {
         /// Uses a wavetable for the synth. `log2size` is the base-2 log of
         /// each waveform's size (e.g. 8 for 256 samples).
         public func setWavetable(_ sample: AudioSample, log2size: Int,
-                                 columns: Int, rows: Int) throws(Playdate.Error) {
+                                 columns: Int, rows: Int) throws(PlaydateError) {
             retainedSample = sample
             guard Synth.api.setWavetable.unsafelyUnwrapped(
                 pointer, sample.pointer, Int32(log2size), Int32(columns), Int32(rows)) != 0 else {
-                throw Playdate.Error(message: "invalid wavetable dimensions")
+                throw PlaydateError(message: "invalid wavetable dimensions")
             }
         }
 
@@ -497,7 +497,7 @@ extension Playdate.Sound {
         }
 
         /// Creates a sequence and loads the MIDI file at `path`.
-        public convenience init(midiFilePath: String) throws(Playdate.Error) {
+        public convenience init(midiFilePath: String) throws(PlaydateError) {
             self.init()
             try loadMIDIFile(path: midiFilePath)
         }
@@ -506,12 +506,12 @@ extension Playdate.Sound {
             Sequence.api.freeSequence.unsafelyUnwrapped(pointer)
         }
 
-        public func loadMIDIFile(path: String) throws(Playdate.Error) {
+        public func loadMIDIFile(path: String) throws(PlaydateError) {
             let loaded = path.withPlaydateCString {
                 Sequence.api.loadMIDIFile.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
-                throw Playdate.Error(message: "unable to load MIDI file: \(path)")
+                throw PlaydateError(message: "unable to load MIDI file: \(path)")
             }
         }
 

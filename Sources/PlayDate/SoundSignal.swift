@@ -6,7 +6,7 @@
 
 internal import CPlaydate
 
-extension Playdate.Sound {
+extension Sound {
     /// A value that can modulate a parameter. The base class of `Signal`,
     /// `LFO`, `Envelope`, and `ControlSignal`. Wraps `PDSynthSignalValue`.
     public class SignalValue {

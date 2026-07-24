@@ -5,12 +5,10 @@
 
 internal import CPlaydate
 
-extension Playdate {
-    /// The system API: logging, input, time, menu items, and device state.
-    public enum System {}
-}
+/// The system API: logging, input, time, menu items, and device state.
+public enum System {}
 
-extension Playdate.System {
+extension System {
     private static var api: playdate_sys { Playdate.api.system.pointee }
 
     // MARK: - Types
@@ -189,8 +187,8 @@ extension Playdate.System {
     public static func getServerTime(_ completion: @escaping (_ time: String?, _ error: String?) -> Void) {
         serverTimeCompletion = completion
         api.getServerTime.unsafelyUnwrapped { time, error in
-            let completion = Playdate.System.serverTimeCompletion
-            Playdate.System.serverTimeCompletion = nil
+            let completion = System.serverTimeCompletion
+            System.serverTimeCompletion = nil
             completion?(String(playdateCString: time), String(playdateCString: error))
         }
     }
@@ -203,7 +201,7 @@ extension Playdate.System {
     public static func setUpdateCallback(_ callback: @escaping () -> Bool) {
         updateCallback = callback
         api.setUpdateCallback.unsafelyUnwrapped({ _ in
-            Playdate.System.updateCallback?() == true ? 1 : 0
+            System.updateCallback?() == true ? 1 : 0
         }, nil)
     }
 
@@ -231,7 +229,7 @@ extension Playdate.System {
         buttonCallback = callback
         if callback != nil {
             api.setButtonCallback.unsafelyUnwrapped({ button, down, when, _ in
-                Playdate.System.buttonCallback?(Buttons(button), down != 0, when) ?? 0
+                System.buttonCallback?(Buttons(button), down != 0, when) ?? 0
             }, nil, Int32(queueSize))
         } else {
             api.setButtonCallback.unsafelyUnwrapped(nil, nil, Int32(queueSize))
@@ -280,7 +278,7 @@ extension Playdate.System {
         if callback != nil {
             api.setSerialMessageCallback.unsafelyUnwrapped { data in
                 guard let message = String(playdateCString: data) else { return }
-                Playdate.System.serialMessageCallback?(message)
+                System.serialMessageCallback?(message)
             }
         } else {
             api.setSerialMessageCallback.unsafelyUnwrapped(nil)
@@ -415,7 +413,7 @@ extension Playdate.System {
 
     /// Sets a custom image for the pause menu, optionally shifted left by
     /// `xOffset` (0...200).
-    public static func setMenuImage(_ bitmap: Playdate.Graphics.Bitmap?, xOffset: Int = 0) {
+    public static func setMenuImage(_ bitmap: Graphics.Bitmap?, xOffset: Int = 0) {
         api.setMenuImage.unsafelyUnwrapped(bitmap?.pointer, Int32(xOffset))
     }
 

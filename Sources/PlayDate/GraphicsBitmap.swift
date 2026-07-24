@@ -5,7 +5,7 @@
 
 internal import CPlaydate
 
-extension Playdate.Graphics {
+extension Graphics {
     /// An image that can be drawn to the screen or used as a drawing target.
     /// Wraps `LCDBitmap`.
     public final class Bitmap {
@@ -29,10 +29,10 @@ extension Playdate.Graphics {
         }
 
         /// Loads a bitmap from a file in the game's pdx or Data directory.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             let pointer = path.withPlaydateCString { gfx.loadBitmap.unsafelyUnwrapped($0, &error) }
-            guard let pointer else { throw Playdate.Error(cString: error) }
+            guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer, isOwned: true)
         }
 
@@ -74,10 +74,10 @@ extension Playdate.Graphics {
         // MARK: Operations
 
         /// Replaces the bitmap's contents with the image at `path`.
-        public func load(path: String) throws(Playdate.Error) {
+        public func load(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             path.withPlaydateCString { gfx.loadIntoBitmap.unsafelyUnwrapped($0, pointer, &error) }
-            if let error { throw Playdate.Error(cString: error) }
+            if let error { throw PlaydateError(cString: error) }
         }
 
         /// Fills the bitmap with `color`.
@@ -166,10 +166,10 @@ extension Playdate.Graphics {
         }
 
         /// Loads an image table from a file.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             let pointer = path.withPlaydateCString { gfx.loadBitmapTable.unsafelyUnwrapped($0, &error) }
-            guard let pointer else { throw Playdate.Error(cString: error) }
+            guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer)
         }
 
@@ -178,10 +178,10 @@ extension Playdate.Graphics {
         }
 
         /// Replaces the table's contents with the image table at `path`.
-        public func load(path: String) throws(Playdate.Error) {
+        public func load(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             path.withPlaydateCString { gfx.loadIntoBitmapTable.unsafelyUnwrapped($0, pointer, &error) }
-            if let error { throw Playdate.Error(cString: error) }
+            if let error { throw PlaydateError(cString: error) }
         }
 
         /// The bitmap at `index`, or `nil` if out of range. The bitmap

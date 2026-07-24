@@ -5,7 +5,7 @@
 
 internal import CPlaydate
 
-extension Playdate.Graphics {
+extension Graphics {
     /// A font loaded from a .pft file. Wraps `LCDFont`.
     public final class Font {
         let pointer: OpaquePointer
@@ -19,10 +19,10 @@ extension Playdate.Graphics {
         }
 
         /// Loads a font from a file.
-        public convenience init(path: String) throws(Playdate.Error) {
+        public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             let pointer = path.withPlaydateCString { gfx.loadFont.unsafelyUnwrapped($0, &error) }
-            guard let pointer else { throw Playdate.Error(cString: error) }
+            guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer)
         }
 
@@ -42,7 +42,7 @@ extension Playdate.Graphics {
 
         deinit {
             // Per the C API docs, fonts are freed with the system allocator.
-            Playdate.System.systemFree(UnsafeMutableRawPointer(pointer))
+            System.systemFree(UnsafeMutableRawPointer(pointer))
             retainedData?.deallocate()
         }
 

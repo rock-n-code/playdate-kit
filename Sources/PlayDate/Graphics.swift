@@ -7,14 +7,12 @@
 
 internal import CPlaydate
 
-extension Playdate {
-    /// The graphics API: drawing, bitmaps, fonts, tilemaps, and video.
-    public enum Graphics {}
-}
+/// The graphics API: drawing, bitmaps, fonts, tilemaps, and video.
+public enum Graphics {}
 
 var gfx: playdate_graphics { Playdate.api.graphics.pointee }
 
-extension Playdate.Graphics {
+extension Graphics {
     // MARK: - Screen constants
 
     /// The width of the screen in pixels (`LCD_COLUMNS`).

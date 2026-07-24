@@ -5,12 +5,10 @@
 
 internal import CPlaydate
 
-extension Playdate {
-    /// The display API: resolution, refresh rate, scaling, and effects.
-    public enum Display {}
-}
+/// The display API: resolution, refresh rate, scaling, and effects.
+public enum Display {}
 
-extension Playdate.Display {
+extension Display {
     private static var api: playdate_display { Playdate.api.display.pointee }
 
     /// The display width in pixels, taking the current scale into account.

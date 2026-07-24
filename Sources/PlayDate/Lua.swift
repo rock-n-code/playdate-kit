@@ -11,13 +11,11 @@ public import CPlaydate
 
 private var luaAPI: playdate_lua { Playdate.api.lua.pointee }
 
-extension Playdate {
-    /// The Lua bridge: registering C functions and classes, and exchanging
-    /// values with Lua code.
-    public enum Lua {}
-}
+/// The Lua bridge: registering C functions and classes, and exchanging
+/// values with Lua code.
+public enum Lua {}
 
-extension Playdate.Lua {
+extension Lua {
     /// A function callable from Lua. Returns the number of values it pushed
     /// onto the stack.
     public typealias CFunction = lua_CFunction
@@ -58,12 +56,12 @@ extension Playdate.Lua {
 
     /// Makes `function` callable from Lua as `name` (which may contain dots
     /// for namespacing, e.g. "mylib.myfunc").
-    public static func addFunction(_ function: CFunction, name: String) throws(Playdate.Error) {
+    public static func addFunction(_ function: CFunction, name: String) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
         let ok = name.withPlaydateCString {
             luaAPI.addFunction.unsafelyUnwrapped(function, $0, &error) != 0
         }
-        if !ok { throw Playdate.Error(cString: error) }
+        if !ok { throw PlaydateError(cString: error) }
     }
 
     /// Registers a Lua class named `name` with the given methods and
@@ -72,7 +70,7 @@ extension Playdate.Lua {
     public static func registerClass(name: String,
                                      functions: [(name: String, function: CFunction)],
                                      values: [ClassValue] = [],
-                                     isStatic: Bool = false) throws(Playdate.Error) {
+                                     isStatic: Bool = false) throws(PlaydateError) {
         // The registration tables are kept alive permanently: the OS
         // documents no copying guarantees for them.
         var registrations: [lua_reg] = functions.map { entry in
@@ -107,7 +105,7 @@ extension Playdate.Lua {
                                                    values.isEmpty ? nil : constantsBuffer,
                                                    isStatic ? 1 : 0, &error) != 0
         }
-        if !ok { throw Playdate.Error(cString: error) }
+        if !ok { throw PlaydateError(cString: error) }
     }
 
     /// Pushes a function onto the stack, e.g. for `setUserValue`.
@@ -189,15 +187,15 @@ extension Playdate.Lua {
 
     /// The argument as a bitmap. References an object owned by Lua; retain
     /// the Lua value while using it.
-    public static func bitmapArgument(at position: Int) -> Playdate.Graphics.Bitmap? {
+    public static func bitmapArgument(at position: Int) -> Graphics.Bitmap? {
         guard let bitmap = luaAPI.getBitmap.unsafelyUnwrapped(Int32(position)) else { return nil }
-        return Playdate.Graphics.Bitmap(pointer: bitmap, isOwned: false)
+        return Graphics.Bitmap(pointer: bitmap, isOwned: false)
     }
 
     /// The argument as a sprite.
-    public static func spriteArgument(at position: Int) -> Playdate.Sprite? {
+    public static func spriteArgument(at position: Int) -> Sprite? {
         guard let sprite = luaAPI.getSprite.unsafelyUnwrapped(Int32(position)) else { return nil }
-        return Playdate.Sprite.wrapper(for: sprite)
+        return Sprite.wrapper(for: sprite)
     }
 
     // MARK: - Return values
@@ -229,11 +227,11 @@ extension Playdate.Lua {
         }
     }
 
-    public static func push(_ bitmap: Playdate.Graphics.Bitmap) {
+    public static func push(_ bitmap: Graphics.Bitmap) {
         luaAPI.pushBitmap.unsafelyUnwrapped(bitmap.pointer)
     }
 
-    public static func push(_ sprite: Playdate.Sprite) {
+    public static func push(_ sprite: Sprite) {
         luaAPI.pushSprite.unsafelyUnwrapped(sprite.pointer)
     }
 
@@ -283,11 +281,11 @@ extension Playdate.Lua {
 
     /// Calls the Lua function `name`. Push the arguments onto the stack
     /// first. Calling Lua from Swift has overhead; use sparingly.
-    public static func callFunction(_ name: String, argumentCount: Int = 0) throws(Playdate.Error) {
+    public static func callFunction(_ name: String, argumentCount: Int = 0) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
         let ok = name.withPlaydateCString {
             luaAPI.callFunction.unsafelyUnwrapped($0, Int32(argumentCount), &error) != 0
         }
-        if !ok { throw Playdate.Error(cString: error) }
+        if !ok { throw PlaydateError(cString: error) }
     }
 }

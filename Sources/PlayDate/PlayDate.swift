@@ -10,6 +10,9 @@
 
 public import CPlaydate
 
+/// The raw C API bootstrap. Everything else in this module (System,
+/// Graphics, Sprite, Sound, ...) lives at the top level of the `PlayDate`
+/// module and requires `initialize(with:)` to have been called first.
 public enum Playdate {
     /// The raw C API. Populated by `initialize(with:)`.
     ///
@@ -29,59 +32,59 @@ public enum Playdate {
         apiPointer = pointer.assumingMemoryBound(to: PlaydateAPI.self)
         api = apiPointer.pointee
     }
+}
 
-    /// An error reported by the Playdate OS.
-    public struct Error: Swift.Error, Sendable {
-        public let message: String
+/// An error reported by the Playdate OS.
+public struct PlaydateError: Swift.Error, Sendable {
+    public let message: String
 
-        init(message: String) {
-            self.message = message
-        }
-
-        init(cString: UnsafePointer<CChar>?) {
-            self.init(message: String(playdateCString: cString) ?? "unknown error")
-        }
+    init(message: String) {
+        self.message = message
     }
 
-    /// The user's answer to a permission request (microphone, network).
-    public enum AccessReply: UInt32, Sendable {
-        case ask = 0
-        case deny = 1
-        case allow = 2
+    init(cString: UnsafePointer<CChar>?) {
+        self.init(message: String(playdateCString: cString) ?? "unknown error")
     }
+}
 
-    /// A Swift view of `PDSystemEvent` with the key code folded into the
-    /// key events.
-    public enum SystemEvent {
-        case initialize
-        case initializeLua
-        case lock
-        case unlock
-        case pause
-        case resume
-        case terminate
-        case keyPressed(keyCode: UInt32)
-        case keyReleased(keyCode: UInt32)
-        case lowPower
-        case mirrorStarted
-        case mirrorEnded
+/// The user's answer to a permission request (microphone, network).
+public enum AccessReply: UInt32, Sendable {
+    case ask = 0
+    case deny = 1
+    case allow = 2
+}
 
-        public init?(event: PDSystemEvent, argument: UInt32) {
-            switch event {
-            case kEventInit: self = .initialize
-            case kEventInitLua: self = .initializeLua
-            case kEventLock: self = .lock
-            case kEventUnlock: self = .unlock
-            case kEventPause: self = .pause
-            case kEventResume: self = .resume
-            case kEventTerminate: self = .terminate
-            case kEventKeyPressed: self = .keyPressed(keyCode: argument)
-            case kEventKeyReleased: self = .keyReleased(keyCode: argument)
-            case kEventLowPower: self = .lowPower
-            case kEventMirrorStarted: self = .mirrorStarted
-            case kEventMirrorEnded: self = .mirrorEnded
-            default: return nil
-            }
+/// A Swift view of `PDSystemEvent` with the key code folded into the
+/// key events.
+public enum SystemEvent {
+    case initialize
+    case initializeLua
+    case lock
+    case unlock
+    case pause
+    case resume
+    case terminate
+    case keyPressed(keyCode: UInt32)
+    case keyReleased(keyCode: UInt32)
+    case lowPower
+    case mirrorStarted
+    case mirrorEnded
+
+    public init?(event: PDSystemEvent, argument: UInt32) {
+        switch event {
+        case kEventInit: self = .initialize
+        case kEventInitLua: self = .initializeLua
+        case kEventLock: self = .lock
+        case kEventUnlock: self = .unlock
+        case kEventPause: self = .pause
+        case kEventResume: self = .resume
+        case kEventTerminate: self = .terminate
+        case kEventKeyPressed: self = .keyPressed(keyCode: argument)
+        case kEventKeyReleased: self = .keyReleased(keyCode: argument)
+        case kEventLowPower: self = .lowPower
+        case kEventMirrorStarted: self = .mirrorStarted
+        case kEventMirrorEnded: self = .mirrorEnded
+        default: return nil
         }
     }
 }

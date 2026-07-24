@@ -7,7 +7,7 @@ internal import CPlaydate
 
 private var tilemapAPI: playdate_tilemap { gfx.tilemap.pointee }
 
-extension Playdate.Graphics {
+extension Graphics {
     /// A grid of tiles drawn from a bitmap table. Wraps `LCDTileMap`.
     public final class TileMap {
         let pointer: OpaquePointer
