@@ -9,7 +9,7 @@ internal import CPlaydate
 public enum Display {}
 
 extension Display {
-    private static var api: UnsafePointer<playdate_display> { Playdate.displayAPI }
+    private static var api: UnsafePointer<playdate_display> { Playdate.displayAPI.unsafelyUnwrapped }
 
     /// The display width in pixels, taking the current scale into account.
     public static var width: Int { Int(api.pointee.getWidth.unsafelyUnwrapped()) }

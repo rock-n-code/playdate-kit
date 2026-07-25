@@ -10,7 +10,7 @@ internal import CPlaydate
 /// The graphics API: drawing, bitmaps, fonts, tilemaps, and video.
 public enum Graphics {}
 
-var gfx: UnsafePointer<playdate_graphics> { Playdate.graphicsAPI }
+var gfx: UnsafePointer<playdate_graphics> { Playdate.graphicsAPI.unsafelyUnwrapped }
 
 extension Graphics {
     // MARK: - Screen constants
@@ -305,15 +305,15 @@ extension Graphics {
     /// back to the first.
     public static func fillPolygon(points: [(x: Int, y: Int)], color: Color,
                                    fillRule: PolygonFillRule = .nonZero) {
-        var coordinates = [Int32]()
-        coordinates.reserveCapacity(points.count * 2)
-        for point in points {
-            coordinates.append(Int32(point.x))
-            coordinates.append(Int32(point.y))
-        }
-        color.withLCDColor { cColor in
-            coordinates.withUnsafeMutableBufferPointer { buffer in
-                gfx.pointee.fillPolygon.unsafelyUnwrapped(Int32(points.count), buffer.baseAddress,
+        withUnsafeTemporaryAllocation(of: Int32.self, capacity: points.count * 2) { coordinates in
+            var index = 0
+            for point in points {
+                coordinates[index] = Int32(point.x)
+                coordinates[index + 1] = Int32(point.y)
+                index += 2
+            }
+            color.withLCDColor { cColor in
+                gfx.pointee.fillPolygon.unsafelyUnwrapped(Int32(points.count), coordinates.baseAddress,
                                                   cColor, fillRule.cValue)
             }
         }

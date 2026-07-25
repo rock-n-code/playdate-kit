@@ -9,7 +9,7 @@
 
 internal import CPlaydate
 
-private var scoreboardsAPI: UnsafePointer<playdate_scoreboards> { Playdate.scoreboardsAPI }
+private var scoreboardsAPI: UnsafePointer<playdate_scoreboards> { Playdate.scoreboardsAPI.unsafelyUnwrapped }
 
 /// The scoreboards API for games with online leaderboards.
 public enum Scoreboards {}

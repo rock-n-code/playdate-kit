@@ -8,7 +8,7 @@
 
 internal import CPlaydate
 
-private var fileAPI: UnsafePointer<playdate_file> { Playdate.fileAPI }
+private var fileAPI: UnsafePointer<playdate_file> { Playdate.fileAPI.unsafelyUnwrapped }
 
 /// The most recent file system error as a thrown error.
 private func lastFileError() -> PlaydateError {
@@ -184,7 +184,11 @@ extension File {
         /// Writes the string's UTF-8 to the file. Returns the bytes written.
         @discardableResult
         public func write(_ string: String) throws(PlaydateError) -> Int {
-            try write(Array(string.utf8))
+            let result = string.withPlaydateUTF8 { bytes, count in
+                fileAPI.pointee.write.unsafelyUnwrapped(pointer, bytes, UInt32(count))
+            }
+            if result < 0 { throw lastFileError() }
+            return Int(result)
         }
 
         /// Flushes buffered writes to disk. Returns the bytes written.

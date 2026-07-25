@@ -6,7 +6,7 @@
 
 internal import CPlaydate
 
-private var effectAPI: UnsafePointer<playdate_sound_effect> { snd.pointee.effect.unsafelyUnwrapped }
+private var effectAPI: UnsafePointer<playdate_sound_effect> { Playdate.effectAPI.unsafelyUnwrapped }
 
 extension Sound {
     /// An effect that processes a channel's audio: the base class of the
@@ -74,7 +74,7 @@ extension Sound {
 
     /// A two-pole IIR filter. Wraps `TwoPoleFilter`.
     public final class TwoPoleFilter: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_twopolefilter> { effectAPI.pointee.twopolefilter.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_twopolefilter> { Playdate.twoPoleFilterAPI.unsafelyUnwrapped }
 
         public enum Kind: UInt32, Sendable {
             case lowPass = 0
@@ -142,7 +142,7 @@ extension Sound {
 
     /// A one-pole low/high-pass filter. Wraps `OnePoleFilter`.
     public final class OnePoleFilter: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_onepolefilter> { effectAPI.pointee.onepolefilter.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_onepolefilter> { Playdate.onePoleFilterAPI.unsafelyUnwrapped }
 
         private var retainedParameterModulator: SignalValue?
 
@@ -176,7 +176,7 @@ extension Sound {
 
     /// A bit-crushing and downsampling effect. Wraps `BitCrusher`.
     public final class BitCrusher: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_bitcrusher> { effectAPI.pointee.bitcrusher.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_bitcrusher> { Playdate.bitCrusherAPI.unsafelyUnwrapped }
 
         private var retainedModulators: [SignalValue] = []
 
@@ -231,7 +231,7 @@ extension Sound {
 
     /// A ring modulator effect. Wraps `RingModulator`.
     public final class RingModulator: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_ringmodulator> { effectAPI.pointee.ringmodulator.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_ringmodulator> { Playdate.ringModulatorAPI.unsafelyUnwrapped }
 
         private var retainedFrequencyModulator: SignalValue?
 
@@ -265,7 +265,7 @@ extension Sound {
     /// A tap into a delay line; produces audio and can be added to a channel
     /// as a source. Wraps `DelayLineTap`.
     public final class DelayLineTap: Source {
-        private static var api: UnsafePointer<playdate_sound_effect_delayline> { effectAPI.pointee.delayline.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_delayline> { Playdate.delayLineAPI.unsafelyUnwrapped }
 
         /// The delay line is retained so the tap stays valid.
         private let delayLine: DelayLine
@@ -301,7 +301,7 @@ extension Sound {
 
     /// A delay line effect. Wraps `DelayLine`.
     public final class DelayLine: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_delayline> { effectAPI.pointee.delayline.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_delayline> { Playdate.delayLineAPI.unsafelyUnwrapped }
 
         /// Creates a delay line holding `length` frames.
         public init(length: Int, stereo: Bool = false) {
@@ -340,7 +340,7 @@ extension Sound {
 
     /// An overdrive/distortion effect. Wraps `Overdrive`.
     public final class Overdrive: Effect {
-        private static var api: UnsafePointer<playdate_sound_effect_overdrive> { effectAPI.pointee.overdrive.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_effect_overdrive> { Playdate.overdriveAPI.unsafelyUnwrapped }
 
         private var retainedModulators: [SignalValue] = []
 

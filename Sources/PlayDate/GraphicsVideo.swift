@@ -6,8 +6,8 @@
 
 internal import CPlaydate
 
-private var videoAPI: UnsafePointer<playdate_video> { gfx.pointee.video.unsafelyUnwrapped }
-private var streamAPI: UnsafePointer<playdate_videostream> { gfx.pointee.videostream.unsafelyUnwrapped }
+private var videoAPI: UnsafePointer<playdate_video> { Playdate.videoAPI.unsafelyUnwrapped }
+private var streamAPI: UnsafePointer<playdate_videostream> { Playdate.videoStreamAPI.unsafelyUnwrapped }
 
 extension Graphics {
     /// Plays .pdv video files. Wraps `LCDVideoPlayer`.

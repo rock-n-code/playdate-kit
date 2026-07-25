@@ -9,9 +9,9 @@
 
 internal import CPlaydate
 
-private var networkAPI: UnsafePointer<playdate_network> { Playdate.networkAPI }
-private var httpAPI: UnsafePointer<playdate_http> { networkAPI.pointee.http.unsafelyUnwrapped }
-private var tcpAPI: UnsafePointer<playdate_tcp> { networkAPI.pointee.tcp.unsafelyUnwrapped }
+private var networkAPI: UnsafePointer<playdate_network> { Playdate.networkAPI.unsafelyUnwrapped }
+private var httpAPI: UnsafePointer<playdate_http> { Playdate.httpAPI.unsafelyUnwrapped }
+private var tcpAPI: UnsafePointer<playdate_tcp> { Playdate.tcpAPI.unsafelyUnwrapped }
 
 /// The network API: wifi status, HTTP, and TCP.
 public enum Network {}

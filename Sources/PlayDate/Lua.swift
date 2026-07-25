@@ -9,7 +9,7 @@
 
 public import CPlaydate
 
-private var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI }
+private var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI.unsafelyUnwrapped }
 
 /// The Lua bridge: registering C functions and classes, and exchanging
 /// values with Lua code.
@@ -178,10 +178,13 @@ extension Lua {
     /// `UDObject` handle for retaining it.
     public static func objectArgument(at position: Int, type: String)
         -> (object: UnsafeMutableRawPointer?, userdataObject: UDObject?) {
-        let cType = type.copiedPlaydateCString()
-        defer { cType.deallocate() }
         var userdataObject: OpaquePointer?
-        let object = luaAPI.pointee.getArgObject.unsafelyUnwrapped(Int32(position), cType, &userdataObject)
+        // The C API takes a non-const class name but only reads it, so the
+        // stack copy can be passed with a mutating cast.
+        let object = type.withPlaydateCString { cType in
+            luaAPI.pointee.getArgObject.unsafelyUnwrapped(
+                Int32(position), UnsafeMutablePointer(mutating: cType), &userdataObject)
+        }
         return (object, userdataObject.map { UDObject(pointer: $0) })
     }
 
@@ -240,11 +243,13 @@ extension Lua {
     @discardableResult
     public static func pushObject(_ object: UnsafeMutableRawPointer, type: String,
                                   valueCount: Int = 0) -> UDObject? {
-        let cType = type.copiedPlaydateCString()
-        defer { cType.deallocate() }
-        guard let pointer = luaAPI.pointee.pushObject.unsafelyUnwrapped(object, cType, Int32(valueCount)) else {
-            return nil
+        // The C API takes a non-const class name but only reads it, so the
+        // stack copy can be passed with a mutating cast.
+        let pointer = type.withPlaydateCString { cType in
+            luaAPI.pointee.pushObject.unsafelyUnwrapped(
+                object, UnsafeMutablePointer(mutating: cType), Int32(valueCount))
         }
+        guard let pointer else { return nil }
         return UDObject(pointer: pointer)
     }
 

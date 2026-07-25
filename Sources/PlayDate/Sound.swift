@@ -7,7 +7,7 @@
 
 internal import CPlaydate
 
-var snd: UnsafePointer<playdate_sound> { Playdate.soundAPI }
+var snd: UnsafePointer<playdate_sound> { Playdate.soundAPI.unsafelyUnwrapped }
 
 /// The sound API: channels, players, synths, sequences, and effects.
 public enum Sound {}
@@ -176,7 +176,7 @@ extension Sound {
 
     /// A mixer channel holding sources and effects. Wraps `SoundChannel`.
     public final class Channel {
-        private static var api: UnsafePointer<playdate_sound_channel> { snd.pointee.channel.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_channel> { Playdate.channelAPI.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool

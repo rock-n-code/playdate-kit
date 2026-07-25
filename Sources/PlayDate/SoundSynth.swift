@@ -8,7 +8,7 @@ internal import CPlaydate
 extension Sound {
     /// A synthesizer voice. Wraps `PDSynth`.
     public final class Synth: Source {
-        private static var api: UnsafePointer<playdate_sound_synth> { snd.pointee.synth.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_synth> { Playdate.synthAPI.unsafelyUnwrapped }
 
         /// The synth's waveform.
         public enum Waveform: UInt32, Sendable {
@@ -268,7 +268,7 @@ extension Sound {
     /// A bank of synth voices for playing a sequence track. Wraps
     /// `PDSynthInstrument`.
     public final class Instrument {
-        private static var api: UnsafePointer<playdate_sound_instrument> { snd.pointee.instrument.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_instrument> { Playdate.instrumentAPI.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -372,7 +372,7 @@ extension Sound {
 
     /// A track of notes played by an instrument. Wraps `SequenceTrack`.
     public final class SequenceTrack {
-        private static var api: UnsafePointer<playdate_sound_track> { snd.pointee.track.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_track> { Playdate.trackAPI.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -486,7 +486,7 @@ extension Sound {
     /// A collection of tracks with tempo and loop control, playable from a
     /// MIDI file. Wraps `SoundSequence`.
     public final class Sequence {
-        private static var api: UnsafePointer<playdate_sound_sequence> { snd.pointee.sequence.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_sequence> { Playdate.sequenceAPI.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         private var retainedTracks: [SequenceTrack] = []

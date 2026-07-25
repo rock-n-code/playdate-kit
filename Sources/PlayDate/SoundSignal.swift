@@ -28,7 +28,7 @@ extension Sound {
     /// A signal object; also provides custom signals driven by Swift
     /// callbacks. Wraps `PDSynthSignal`.
     public final class Signal: SignalValue {
-        private static var api: UnsafePointer<playdate_sound_signal> { snd.pointee.signal.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_signal> { Playdate.signalAPI.unsafelyUnwrapped }
 
         /// Custom signal callbacks.
         public struct Callbacks {
@@ -123,7 +123,7 @@ extension Sound {
 
     /// A low-frequency oscillator signal. Wraps `PDSynthLFO`.
     public final class LFO: SignalValue {
-        private static var api: UnsafePointer<playdate_sound_lfo> { snd.pointee.lfo.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_lfo> { Playdate.lfoAPI.unsafelyUnwrapped }
 
         /// The oscillator's waveform.
         public enum Shape: UInt32, Sendable {
@@ -232,7 +232,7 @@ extension Sound {
 
     /// An ADSR envelope signal. Wraps `PDSynthEnvelope`.
     public final class Envelope: SignalValue {
-        private static var api: UnsafePointer<playdate_sound_envelope> { snd.pointee.envelope.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_envelope> { Playdate.envelopeAPI.unsafelyUnwrapped }
 
         /// Creates an envelope with the given attack and decay times
         /// (seconds), sustain level (0...1), and release time (seconds).
@@ -305,7 +305,7 @@ extension Sound {
     /// A signal whose values are set on a sequence timeline. Wraps
     /// `ControlSignal`.
     public final class ControlSignal: SignalValue {
-        private static var api: UnsafePointer<playdate_control_signal> { snd.pointee.controlsignal.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_control_signal> { Playdate.controlSignalAPI.unsafelyUnwrapped }
 
         public init() {
             let pointer = ControlSignal.api.pointee.newSignal.unsafelyUnwrapped()

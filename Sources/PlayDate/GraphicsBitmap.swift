@@ -63,8 +63,21 @@ extension Graphics {
                         mask: mask, data: data)
         }
 
-        public var width: Int { data.width }
-        public var height: Int { data.height }
+        /// Cached dimensions, so `width`/`height` don't pay a full
+        /// `getBitmapData` round-trip per access. Only `load(path:)` can
+        /// change a bitmap's size, which resets the cache.
+        private var cachedSize: (width: Int, height: Int)?
+
+        private var size: (width: Int, height: Int) {
+            if let cachedSize { return cachedSize }
+            let data = self.data
+            let size = (data.width, data.height)
+            cachedSize = size
+            return size
+        }
+
+        public var width: Int { size.width }
+        public var height: Int { size.height }
 
         /// The color of the pixel at (x, y).
         public func pixel(x: Int, y: Int) -> SolidColor {
@@ -77,6 +90,7 @@ extension Graphics {
         public func load(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
             path.withPlaydateCString { gfx.pointee.loadIntoBitmap.unsafelyUnwrapped($0, pointer, &error) }
+            cachedSize = nil
             if let error { throw PlaydateError(cString: error) }
         }
 

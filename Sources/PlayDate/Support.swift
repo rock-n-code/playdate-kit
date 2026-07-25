@@ -58,12 +58,14 @@ extension String {
     /// Copies the string into a newly allocated null-terminated C string.
     /// The caller owns the memory and must free it with `deallocate()`.
     func copiedPlaydateCString() -> UnsafeMutablePointer<CChar> {
-        let utf8 = ContiguousArray(self.utf8)
-        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: utf8.count + 1)
-        for (index, byte) in utf8.enumerated() {
+        let count = utf8.count
+        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: count + 1)
+        var index = 0
+        for byte in utf8 {
             buffer[index] = CChar(bitPattern: byte)
+            index += 1
         }
-        buffer[utf8.count] = 0
+        buffer[count] = 0
         return buffer
     }
 }

@@ -9,7 +9,7 @@ extension Sound {
     /// A source of audio: the base class of `FilePlayer`, `SamplePlayer`,
     /// `Synth`, `DelayLineTap`, and `CallbackSource`. Wraps `SoundSource`.
     public class Source {
-        private static var api: UnsafePointer<playdate_sound_source> { snd.pointee.source.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_source> { Playdate.sourceAPI.unsafelyUnwrapped }
 
         /// The underlying C object. Set once, immediately after creation.
         var pointer: OpaquePointer!
@@ -106,7 +106,7 @@ extension Sound {
 
     /// Streams audio from a file. Wraps `FilePlayer`.
     public final class FilePlayer: Source {
-        private static var api: UnsafePointer<playdate_sound_fileplayer> { snd.pointee.fileplayer.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_fileplayer> { Playdate.filePlayerAPI.unsafelyUnwrapped }
 
         var loopCallback: ((FilePlayer) -> Void)?
         var fadeCallback: ((FilePlayer) -> Void)?
@@ -256,7 +256,7 @@ extension Sound {
 
     /// Audio data loaded into memory. Wraps `AudioSample`.
     public final class AudioSample {
-        private static var api: UnsafePointer<playdate_sound_sample> { snd.pointee.sample.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_sample> { Playdate.sampleAPI.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -337,7 +337,7 @@ extension Sound {
 
     /// Plays an `AudioSample` from memory. Wraps `SamplePlayer`.
     public final class SamplePlayer: Source {
-        private static var api: UnsafePointer<playdate_sound_sampleplayer> { snd.pointee.sampleplayer.unsafelyUnwrapped }
+        private static var api: UnsafePointer<playdate_sound_sampleplayer> { Playdate.samplePlayerAPI.unsafelyUnwrapped }
 
         var loopCallback: ((SamplePlayer) -> Void)?
         private var retainedSample: AudioSample?

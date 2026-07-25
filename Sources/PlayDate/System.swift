@@ -9,7 +9,7 @@ internal import CPlaydate
 public enum System {}
 
 extension System {
-    private static var api: UnsafePointer<playdate_sys> { Playdate.systemAPI }
+    private static var api: UnsafePointer<playdate_sys> { Playdate.systemAPI.unsafelyUnwrapped }
 
     // MARK: - Types
 

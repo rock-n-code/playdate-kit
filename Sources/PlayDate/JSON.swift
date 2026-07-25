@@ -9,7 +9,7 @@
 
 internal import CPlaydate
 
-private var jsonAPI: UnsafePointer<playdate_json> { Playdate.jsonAPI }
+private var jsonAPI: UnsafePointer<playdate_json> { Playdate.jsonAPI.unsafelyUnwrapped }
 
 /// The JSON API: decoding to and encoding from a `Value` tree.
 public enum JSON {}
@@ -33,23 +33,31 @@ extension JSON {
         init(_ value: Value) { self.value = value }
     }
 
+    /// A container under construction. A class, so appends mutate uniquely
+    /// referenced storage in place instead of copying the collection out of
+    /// and back into an enum payload on every element.
+    private final class Container {
+        let isArray: Bool
+        var items: [Value] = []
+        var entries: [String: Value] = [:]
+
+        init(isArray: Bool) { self.isArray = isArray }
+
+        var value: Value { isArray ? .array(items) : .table(entries) }
+    }
+
     private final class DecodeContext {
         /// Containers under construction, innermost last.
-        var stack: [Value] = []
+        var stack: [Container] = []
         var errorMessage: String?
         var errorLine: Int32 = 0
 
         func append(_ value: Value, key: String?) {
-            guard !stack.isEmpty else { return }
-            switch stack[stack.count - 1] {
-            case .array(var items):
-                items.append(value)
-                stack[stack.count - 1] = .array(items)
-            case .table(var entries):
-                if let key { entries[key] = value }
-                stack[stack.count - 1] = .table(entries)
-            default:
-                break
+            guard let container = stack.last else { return }
+            if container.isArray {
+                container.items.append(value)
+            } else if let key {
+                container.entries[key] = value
             }
         }
     }
@@ -81,7 +89,7 @@ extension JSON {
         decoder.willDecodeSublist = { decoder, _, type in
             guard let userdata = decoder?.pointee.userdata else { return }
             let context = Unmanaged<DecodeContext>.fromOpaque(userdata).takeUnretainedValue()
-            context.stack.append(type == kJSONArray ? .array([]) : .table([:]))
+            context.stack.append(Container(isArray: type == kJSONArray))
         }
         decoder.didDecodeTableValue = { decoder, key, value in
             guard let userdata = decoder?.pointee.userdata else { return }
@@ -99,7 +107,7 @@ extension JSON {
             guard let finished = context.stack.popLast() else { return nil }
             // Handed to the parent container (or the decode outval) as the
             // sublist's value; consumed by `convert`.
-            return Unmanaged.passRetained(ValueBox(finished)).toOpaque()
+            return Unmanaged.passRetained(ValueBox(finished.value)).toOpaque()
         }
         return decoder
     }

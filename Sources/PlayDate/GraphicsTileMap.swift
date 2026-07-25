@@ -5,7 +5,7 @@
 
 internal import CPlaydate
 
-private var tilemapAPI: UnsafePointer<playdate_tilemap> { gfx.pointee.tilemap.unsafelyUnwrapped }
+private var tilemapAPI: UnsafePointer<playdate_tilemap> { Playdate.tilemapAPI.unsafelyUnwrapped }
 
 extension Graphics {
     /// A grid of tiles drawn from a bitmap table. Wraps `LCDTileMap`.

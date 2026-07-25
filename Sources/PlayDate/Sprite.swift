@@ -10,7 +10,7 @@
 
 internal import CPlaydate
 
-private var spriteAPI: UnsafePointer<playdate_sprite> { Playdate.spriteAPI }
+private var spriteAPI: UnsafePointer<playdate_sprite> { Playdate.spriteAPI.unsafelyUnwrapped }
 
 /// A floating-point rectangle mirroring `PDRect`.
 public struct Rect: Sendable {
@@ -39,6 +39,10 @@ public struct Rect: Sendable {
 public final class Sprite {
     let pointer: OpaquePointer
     let isOwned: Bool
+
+    /// Position in the static `displayList`, or -1 when not in it; makes
+    /// `add()`/`remove()` O(1) instead of scanning the list.
+    private var displayListIndex = -1
 
     /// Per-sprite callbacks and retained resources.
     var updateFunction: ((Sprite) -> Void)?
@@ -205,7 +209,8 @@ public final class Sprite {
     /// Adds the sprite to the display list.
     public func add() {
         spriteAPI.pointee.addSprite.unsafelyUnwrapped(pointer)
-        if !Sprite.displayList.contains(where: { $0 === self }) {
+        if displayListIndex < 0 {
+            displayListIndex = Sprite.displayList.count
             Sprite.displayList.append(self)
         }
     }
@@ -213,7 +218,16 @@ public final class Sprite {
     /// Removes the sprite from the display list.
     public func remove() {
         spriteAPI.pointee.removeSprite.unsafelyUnwrapped(pointer)
-        Sprite.displayList.removeAll { $0 === self }
+        guard displayListIndex >= 0 else { return }
+        // Swap-remove: the keep-alive list is unordered (the OS keeps the
+        // draw order), so the last sprite can take the vacated slot.
+        let index = displayListIndex
+        let last = Sprite.displayList.removeLast()
+        if last !== self {
+            Sprite.displayList[index] = last
+            last.displayListIndex = index
+        }
+        displayListIndex = -1
     }
 
     /// Removes the given sprites from the display list.
@@ -224,6 +238,7 @@ public final class Sprite {
     /// Removes every sprite from the display list.
     public static func removeAll() {
         spriteAPI.pointee.removeAllSprites.unsafelyUnwrapped()
+        for sprite in displayList { sprite.displayListIndex = -1 }
         displayList = []
     }
 
@@ -318,9 +333,12 @@ public final class Sprite {
 
     /// Sets an 8×8 stencil pattern (8 rows of image data).
     public func setStencilPattern(_ rows: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)) {
-        var pattern: [UInt8] = [rows.0, rows.1, rows.2, rows.3, rows.4, rows.5, rows.6, rows.7]
-        pattern.withUnsafeMutableBufferPointer { buffer in
-            spriteAPI.pointee.setStencilPattern.unsafelyUnwrapped(pointer, buffer.baseAddress)
+        // The tuple is already 8 contiguous bytes; the C side copies the
+        // pattern, so passing the stack storage directly is safe.
+        withUnsafeBytes(of: rows) { buffer in
+            let pattern = UnsafeMutablePointer(
+                mutating: buffer.baseAddress.unsafelyUnwrapped.assumingMemoryBound(to: UInt8.self))
+            spriteAPI.pointee.setStencilPattern.unsafelyUnwrapped(pointer, pattern)
         }
     }
 
@@ -459,16 +477,22 @@ public final class Sprite {
         }
     }
 
+    /// Visits and frees a C collision info array.
+    private static func visitCollisions(_ pointer: UnsafeMutablePointer<SpriteCollisionInfo>?,
+                                        count: Int32, _ visit: (CollisionInfo) -> Void) {
+        guard let pointer else { return }
+        for index in 0..<Int(count) {
+            visit(CollisionInfo(pointer[index]))
+        }
+        System.systemFree(pointer)
+    }
+
     /// Converts and frees a C collision info array.
     private static func collisionInfos(_ pointer: UnsafeMutablePointer<SpriteCollisionInfo>?,
                                        count: Int32) -> [CollisionInfo] {
-        guard let pointer else { return [] }
         var infos = [CollisionInfo]()
         infos.reserveCapacity(Int(count))
-        for index in 0..<Int(count) {
-            infos.append(CollisionInfo(pointer[index]))
-        }
-        System.systemFree(pointer)
+        visitCollisions(pointer, count: count) { infos.append($0) }
         return infos
     }
 
@@ -482,6 +506,17 @@ public final class Sprite {
         return ((actualX, actualY), Sprite.collisionInfos(result, count: count))
     }
 
+    /// Like `checkCollisions(goalX:goalY:)`, but visits each collision
+    /// instead of building an array, avoiding per-call allocations.
+    public func checkCollisions(goalX: Float, goalY: Float,
+                                _ visit: (CollisionInfo) -> Void) -> (x: Float, y: Float) {
+        var actualX: Float = 0, actualY: Float = 0, count: Int32 = 0
+        let result = spriteAPI.pointee.checkCollisions.unsafelyUnwrapped(
+            pointer, goalX, goalY, &actualX, &actualY, &count)
+        Sprite.visitCollisions(result, count: count, visit)
+        return (actualX, actualY)
+    }
+
     /// Moves the sprite toward (goalX, goalY), resolving collisions, and
     /// returns where it ended up and what it hit.
     @discardableResult
@@ -493,18 +528,36 @@ public final class Sprite {
         return ((actualX, actualY), Sprite.collisionInfos(result, count: count))
     }
 
-    /// Converts and frees a C sprite pointer array.
-    private static func sprites(_ pointer: UnsafeMutablePointer<OpaquePointer?>?,
-                                count: Int32) -> [Sprite] {
-        guard let pointer else { return [] }
-        var sprites = [Sprite]()
-        sprites.reserveCapacity(Int(count))
+    /// Like `moveWithCollisions(goalX:goalY:)`, but visits each collision
+    /// instead of building an array, avoiding per-call allocations.
+    @discardableResult
+    public func moveWithCollisions(goalX: Float, goalY: Float,
+                                   _ visit: (CollisionInfo) -> Void) -> (x: Float, y: Float) {
+        var actualX: Float = 0, actualY: Float = 0, count: Int32 = 0
+        let result = spriteAPI.pointee.moveWithCollisions.unsafelyUnwrapped(
+            pointer, goalX, goalY, &actualX, &actualY, &count)
+        Sprite.visitCollisions(result, count: count, visit)
+        return (actualX, actualY)
+    }
+
+    /// Visits and frees a C sprite pointer array.
+    private static func visitSprites(_ pointer: UnsafeMutablePointer<OpaquePointer?>?,
+                                     count: Int32, _ visit: (Sprite) -> Void) {
+        guard let pointer else { return }
         for index in 0..<Int(count) {
             if let spritePointer = pointer[index] {
-                sprites.append(wrapper(for: spritePointer))
+                visit(wrapper(for: spritePointer))
             }
         }
         System.systemFree(pointer)
+    }
+
+    /// Converts and frees a C sprite pointer array.
+    private static func sprites(_ pointer: UnsafeMutablePointer<OpaquePointer?>?,
+                                count: Int32) -> [Sprite] {
+        var sprites = [Sprite]()
+        sprites.reserveCapacity(Int(count))
+        visitSprites(pointer, count: count) { sprites.append($0) }
         return sprites
     }
 
@@ -515,6 +568,14 @@ public final class Sprite {
         return sprites(result, count: count)
     }
 
+    /// Like `query(atPoint:_:)`, visiting each sprite without building an
+    /// array.
+    public static func query(atPoint x: Float, _ y: Float, _ visit: (Sprite) -> Void) {
+        var count: Int32 = 0
+        let result = spriteAPI.pointee.querySpritesAtPoint.unsafelyUnwrapped(x, y, &count)
+        visitSprites(result, count: count, visit)
+    }
+
     /// Sprites with collision rects intersecting the rect.
     public static func query(inRect x: Float, _ y: Float, width: Float, height: Float) -> [Sprite] {
         var count: Int32 = 0
@@ -522,11 +583,29 @@ public final class Sprite {
         return sprites(result, count: count)
     }
 
+    /// Like `query(inRect:_:width:height:)`, visiting each sprite without
+    /// building an array.
+    public static func query(inRect x: Float, _ y: Float, width: Float, height: Float,
+                             _ visit: (Sprite) -> Void) {
+        var count: Int32 = 0
+        let result = spriteAPI.pointee.querySpritesInRect.unsafelyUnwrapped(x, y, width, height, &count)
+        visitSprites(result, count: count, visit)
+    }
+
     /// Sprites with collision rects intersecting the line segment.
     public static func query(alongLine x1: Float, _ y1: Float, _ x2: Float, _ y2: Float) -> [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.querySpritesAlongLine.unsafelyUnwrapped(x1, y1, x2, y2, &count)
         return sprites(result, count: count)
+    }
+
+    /// Like `query(alongLine:_:_:_:)`, visiting each sprite without building
+    /// an array.
+    public static func query(alongLine x1: Float, _ y1: Float, _ x2: Float, _ y2: Float,
+                             _ visit: (Sprite) -> Void) {
+        var count: Int32 = 0
+        let result = spriteAPI.pointee.querySpritesAlongLine.unsafelyUnwrapped(x1, y1, x2, y2, &count)
+        visitSprites(result, count: count, visit)
     }
 
     /// Like `query(alongLine:)`, with entry/exit information for each sprite.
@@ -551,10 +630,26 @@ public final class Sprite {
         return Sprite.sprites(result, count: count)
     }
 
+    /// Like `overlappingSprites`, visiting each sprite without building an
+    /// array.
+    public func overlappingSprites(_ visit: (Sprite) -> Void) {
+        var count: Int32 = 0
+        let result = spriteAPI.pointee.overlappingSprites.unsafelyUnwrapped(pointer, &count)
+        Sprite.visitSprites(result, count: count, visit)
+    }
+
     /// All sprites in the display list that overlap another sprite.
     public static var allOverlappingSprites: [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.allOverlappingSprites.unsafelyUnwrapped(&count)
         return sprites(result, count: count)
+    }
+
+    /// Like `allOverlappingSprites`, visiting each sprite without building
+    /// an array.
+    public static func allOverlappingSprites(_ visit: (Sprite) -> Void) {
+        var count: Int32 = 0
+        let result = spriteAPI.pointee.allOverlappingSprites.unsafelyUnwrapped(&count)
+        visitSprites(result, count: count, visit)
     }
 }
