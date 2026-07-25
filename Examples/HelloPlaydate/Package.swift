@@ -6,7 +6,11 @@ let package = Package(
     name: "HelloPlaydate",
     products: [
         // The Playdate Simulator loads the game as pdex.dylib.
-        .library(name: "pdex", type: .dynamic, targets: ["HelloPlaydate"]),
+        .library(
+            name: "pdex", 
+            type: .dynamic, 
+            targets: ["HelloPlaydate"]
+        ),
     ],
     dependencies: [
         .package(path: "../.."),
@@ -14,7 +18,12 @@ let package = Package(
     targets: [
         .target(
             name: "HelloPlaydate",
-            dependencies: [.product(name: "PlayDate", package: "play-date")]
+            dependencies: [
+                .product(
+                    name: "PlayDate", 
+                    package: "play-date"
+                )
+            ]
         ),
     ]
 )
