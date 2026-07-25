@@ -15,9 +15,9 @@ extension Sound {
         }
 
         /// Creates a sequence and loads the MIDI file at `path`.
-        public convenience init(midiFilePath: String) throws(PlaydateError) {
+        public convenience init(path: String) throws(PlaydateError) {
             self.init()
-            try loadMIDIFile(path: midiFilePath)
+            try loadMIDIFile(path: path)
         }
 
         deinit {

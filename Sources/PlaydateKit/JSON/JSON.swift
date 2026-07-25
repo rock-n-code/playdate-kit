@@ -150,7 +150,7 @@ extension JSON {
     }
 
     /// Opens and decodes the JSON file at `path`.
-    public static func decodeFile(at path: String) throws(PlaydateError) -> Value {
+    public static func decodeFile(path: String) throws(PlaydateError) -> Value {
         let file = try File.Handle(path: path, mode: [.read, .readData])
         return try decode(file: file)
     }
