@@ -78,7 +78,9 @@ extension Sound {
     /// Removes a source from its channel.
     @discardableResult
     public static func removeSource(_ source: Source) -> Bool {
-        snd.removeSource.unsafelyUnwrapped(source.pointer) != 0
+        let removed = snd.removeSource.unsafelyUnwrapped(source.pointer) != 0
+        CallbackSource.release(source)
+        return removed
     }
 
     /// Sets a callback that records microphone input. Return `false` from the
@@ -196,6 +198,11 @@ extension Sound {
         deinit {
             if isOwned {
                 Channel.api.freeChannel.unsafelyUnwrapped(pointer)
+                // The freed channel no longer pulls its callback sources, so
+                // their trampoline registrations can be released too.
+                for source in retainedSources where source is CallbackSource {
+                    CallbackSource.release(source)
+                }
             }
         }
 
@@ -240,6 +247,7 @@ extension Sound {
         public func removeSource(_ source: Source) -> Bool {
             let removed = Channel.api.removeSource.unsafelyUnwrapped(pointer, source.pointer) != 0
             retainedSources.removeAll { $0 === source }
+            CallbackSource.release(source)
             return removed
         }
 

@@ -66,9 +66,16 @@ extension Sound {
 
         let callback: Callback
 
-        /// Sources created through the top-level `Sound.addSource` are kept
-        /// alive here until removed with `Sound.removeSource`.
+        /// Every callback source is kept alive here while the C side may
+        /// still invoke its trampoline: from creation until it is removed
+        /// with `Sound.removeSource`/`Channel.removeSource`, or until its
+        /// owning channel is freed.
         nonisolated(unsafe) static var live: [CallbackSource] = []
+
+        /// Releases the registration added by `adopt(pointer:)`.
+        static func release(_ source: Source) {
+            live.removeAll { $0 === source }
+        }
 
         init(callback: @escaping Callback) {
             self.callback = callback
