@@ -32,7 +32,7 @@ final class Game {
     private let boxSize = 24
 
     func start() {
-        Display.setRefreshRate(50)
+        Display.refreshRate = 50
 
         System.addMenuItem(title: "reset") { _ in
             Game.shared.reset()

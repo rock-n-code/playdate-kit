@@ -119,13 +119,12 @@ extension Sound {
         }
 
         /// Modulates the channel's volume.
-        public func setVolumeModulator(_ modulator: SignalValue?) {
-            retain(modulator)
-            Channel.api.pointee.setVolumeModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
-        }
-
         public var volumeModulator: SignalValue? {
-            SignalValue.wrap(Channel.api.pointee.getVolumeModulator.unsafelyUnwrapped(pointer))
+            get { SignalValue.wrap(Channel.api.pointee.getVolumeModulator.unsafelyUnwrapped(pointer)) }
+            set {
+                retain(newValue)
+                Channel.api.pointee.setVolumeModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+            }
         }
 
         /// The channel's stereo pan: -1 (left) to 1 (right).
@@ -135,13 +134,12 @@ extension Sound {
 
         /// Modulates the channel's pan. The signal's range 0...1 maps to
         /// left...right.
-        public func setPanModulator(_ modulator: SignalValue?) {
-            retain(modulator)
-            Channel.api.pointee.setPanModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
-        }
-
         public var panModulator: SignalValue? {
-            SignalValue.wrap(Channel.api.pointee.getPanModulator.unsafelyUnwrapped(pointer))
+            get { SignalValue.wrap(Channel.api.pointee.getPanModulator.unsafelyUnwrapped(pointer)) }
+            set {
+                retain(newValue)
+                Channel.api.pointee.setPanModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+            }
         }
 
         /// A signal following the channel's dry (unprocessed) level.

@@ -103,7 +103,7 @@ final class Game {
     var player = Sprite()
 
     func start() {
-        Display.setRefreshRate(50)
+        Display.refreshRate = 50
 
         System.setUpdateCallback {
             self.update()
@@ -300,6 +300,7 @@ try Lua.addFunction(double, name: "mylib.double")
 ## Conventions
 
 - **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`, …) live at the top level of the module; only the raw C API bootstrap stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`). On a name collision with another module, qualify with the module name: `PlaydateKit.System`.
+- **Properties vs. methods.** State the OS can report back is a property: read-write where the C API has a get/set pair (`Display.refreshRate`, `Source.volume`), get-only where it only has a getter (`Display.fps`). A `set…` method means the C API is write-only there (`Display.setScale`, `Synth.setAttackTime`) or setting takes extra arguments — a property getter never invents a value the OS can't return. Callbacks are installed with `set…Callback`/`set…Function` methods.
 - **Errors.** Fallible operations use typed throws — `throws(PlaydateError)` generally, `throws(Network.NetError)` for network I/O — so `catch` gives you a concrete type, and no `any Error` existentials are needed.
 - **Ownership.** A wrapper that *creates* a C object frees it on `deinit`; keep the wrapper referenced for as long as you use it. Wrappers vending OS-owned objects (a `Bitmap` from a `BitmapTable`, a track from a `Sequence`, …) don't free them — keep the owner alive instead, as documented on each API. Resources a C object keeps referencing (a sprite's image, a synth's sample, modulators, menu-item option titles) are retained by the wrapper automatically.
 - **Callbacks.** Where the C API provides a userdata slot, closures are supported everywhere and delivered back with the right wrapper. A few C callbacks have no userdata (serial messages, headphone changes, scoreboard

@@ -13,14 +13,12 @@ extension Display {
     /// The display height in pixels, taking the current scale into account.
     public static var height: Int { Int(api.pointee.getHeight.unsafelyUnwrapped()) }
 
-    /// Sets the nominal refresh rate in frames per second. Pass 0 to update
+    /// The nominal refresh rate in frames per second. Set to 0 to update
     /// as fast as possible (the update callback drives the pace).
-    public static func setRefreshRate(_ rate: Float) {
-        api.pointee.setRefreshRate.unsafelyUnwrapped(rate)
+    public static var refreshRate: Float {
+        get { api.pointee.getRefreshRate.unsafelyUnwrapped() }
+        set { api.pointee.setRefreshRate.unsafelyUnwrapped(newValue) }
     }
-
-    /// The current nominal refresh rate.
-    public static var refreshRate: Float { api.pointee.getRefreshRate.unsafelyUnwrapped() }
 
     /// The measured average frames per second.
     public static var fps: Float { api.pointee.getFPS.unsafelyUnwrapped() }

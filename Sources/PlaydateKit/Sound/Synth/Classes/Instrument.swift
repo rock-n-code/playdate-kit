@@ -93,16 +93,14 @@ extension Sound {
             Instrument.api.pointee.allNotesOff.unsafelyUnwrapped(pointer, when)
         }
 
-        /// Sets the volume of the left and right channels, 0...1.
-        public func setVolume(left: Float, right: Float) {
-            Instrument.api.pointee.setVolume.unsafelyUnwrapped(pointer, left, right)
-        }
-
-        /// The volume of the left and right channels.
+        /// The volume of the left and right channels, 0...1.
         public var volume: (left: Float, right: Float) {
-            var left: Float = 0, right: Float = 0
-            Instrument.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
-            return (left, right)
+            get {
+                var left: Float = 0, right: Float = 0
+                Instrument.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
+                return (left, right)
+            }
+            set { Instrument.api.pointee.setVolume.unsafelyUnwrapped(pointer, newValue.left, newValue.right) }
         }
 
         /// The number of voices currently playing.

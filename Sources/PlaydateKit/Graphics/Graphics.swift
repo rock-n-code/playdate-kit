@@ -211,13 +211,9 @@ extension Graphics {
     }
 
     /// Extra space added between letters, in pixels.
-    public static func setTextTracking(_ tracking: Int) {
-        gfx.pointee.setTextTracking.unsafelyUnwrapped(Int32(tracking))
-    }
-
-    /// The extra space currently added between letters, in pixels.
     public static var textTracking: Int {
-        Int(gfx.pointee.getTextTracking.unsafelyUnwrapped())
+        get { Int(gfx.pointee.getTextTracking.unsafelyUnwrapped()) }
+        set { gfx.pointee.setTextTracking.unsafelyUnwrapped(Int32(newValue)) }
     }
 
     /// Adjusts the line height used when drawing multi-line text.

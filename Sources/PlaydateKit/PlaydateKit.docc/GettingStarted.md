@@ -31,7 +31,7 @@ final class Game {
     nonisolated(unsafe) static let shared = Game()
 
     func start() {
-        Display.setRefreshRate(50)
+        Display.refreshRate = 50
 
         System.setUpdateCallback {
             self.update()

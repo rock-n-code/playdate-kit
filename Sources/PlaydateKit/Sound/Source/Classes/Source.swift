@@ -16,21 +16,19 @@ extension Sound {
             self.isOwned = isOwned
         }
 
-        /// Sets the playback volume for the left and right channels, 0...1.
-        public func setVolume(left: Float, right: Float) {
-            Source.api.pointee.setVolume.unsafelyUnwrapped(pointer, left, right)
+        /// The playback volume of the left and right channels, 0...1.
+        public var volume: (left: Float, right: Float) {
+            get {
+                var left: Float = 0, right: Float = 0
+                Source.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
+                return (left, right)
+            }
+            set { Source.api.pointee.setVolume.unsafelyUnwrapped(pointer, newValue.left, newValue.right) }
         }
 
         /// Sets the playback volume of both channels.
         public func setVolume(_ volume: Float) {
-            setVolume(left: volume, right: volume)
-        }
-
-        /// The playback volume of the left and right channels.
-        public var volume: (left: Float, right: Float) {
-            var left: Float = 0, right: Float = 0
-            Source.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
-            return (left, right)
+            self.volume = (volume, volume)
         }
 
         public var isPlaying: Bool {
