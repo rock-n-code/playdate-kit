@@ -1,10 +1,10 @@
 # PlaydateKit
 
-[![CI](https://github.com/<you>/playdate-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/playdate-kit/actions/workflows/ci.yml)
+![Playdate logo](.README/Playdate_logo.svg)
 
 Swift bindings to the [Playdate](https://play.date) C API.
 
-The Playdate C API is delivered as a `PlaydateAPI*` struct of function pointers that the firmware hands to your game at launch. This package wraps that surface in idiomatic Swift: namespaced APIs, wrapper types with ownership semantics, closures instead of function-pointer/userdata pairs, `OptionSet`s and `enum`s instead of raw constants, and typed `throws` for fallible calls.
+The Playdate C API is delivered as a `PlaydateAPI*` struct of function pointers that the firmware hands to your game at launch. This package wraps that surface in idiomatic Swift: namespaced APIs, wrapper types with ownership semantics, closures instead of function-pointer/userdata pairs, `OptionSet` and `enum` types instead of raw constants, and typed `throws` for fallible calls.
 
 All ten C subsystems are covered:
 
@@ -24,11 +24,15 @@ All ten C subsystems are covered:
 ## Requirements
 
 - The [Playdate SDK](https://play.date/dev/) (3.1.1 or later). The SDK is not vendored into this repository.
-- Swift 6.4 tools or later.
+- Swift 6.3 tools or later.
 
 Device builds additionally need:
 
-- A [swift.org development snapshot toolchain](https://www.swift.org/install/macos/) — Xcode's toolchain does not ship the Embedded Swift stdlib for the device target (`armv7em-none-none-eabi`).
+- A [swift.org development snapshot toolchain](https://www.swift.org/install/macos/) — Xcode's toolchain does not ship the Embedded Swift stdlib for the device target (`armv7em-none-none-eabi`). The easiest way to get one is to install [Swiftly](https://www.swift.org/swiftly/), Swift's toolchain manager, and install the `main-snapshot` toolchain with it:
+
+  ```sh
+  swiftly install main-snapshot
+  ```
 - The [Arm GNU toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (`arm-none-eabi-gcc`) on your `PATH`, which the Playdate SDK's build support uses to compile and link the device binary.
 
 ### One-time SDK setup
@@ -48,21 +52,27 @@ If Xcode had the package open before you ran the setup, make it re-read the mani
 ```swift
 // Package.swift of your game
 dependencies: [
-    .package(url: "https://github.com/<you>/playdate-kit.git", from: "0.1.0"),
-    // …or, while developing locally:
-    // .package(path: "../playdate-kit"),
+    .package(
+        url: "https://github.com/rock-n-code/playdate-kit.git", 
+        from: "0.1.0"
+    ),
 ],
 targets: [
     .target(
         name: "MyGame",
-        dependencies: [.product(name: "PlaydateKit", package: "playdate-kit")]
+        dependencies: [
+            .product(
+                name: "PlaydateKit", 
+                package: "playdate-kit"
+            )
+        ]
     ),
 ]
 ```
 
 ## Getting started
 
-A Playdate game has a single C entry point, `eventHandler`. Export it with `@_cdecl`, initialize the binding on the first event, and install an update callback:
+A Playdate application or game has a single C entry point, `eventHandler`. Export it with `@_cdecl`, initialize the binding on the first event, and install an update callback:
 
 ```swift
 import CPlaydate
@@ -307,7 +317,7 @@ Shipping a `.pdx` needs the Playdate toolchain on top:
 
 [`Examples/swift.mk`](Examples/swift.mk) packages the device pipeline: it locates the SDK and a Swift snapshot toolchain, compiles the `PlaydateKit` wrapper as a module-aliased Embedded Swift module, and hooks the game objects into the SDK's `common.mk`. A game needs only a short Makefile on top — [`Examples/HelloPlaydate/Makefile`](Examples/HelloPlaydate/Makefile) is the template, and `make` in that directory produces a `.pdx` containing both the device binary and the simulator dylib. Swift code is compiled `-Osize` by default (measured ~15% smaller than `-O` on the example); override with `make SWIFT_OPT=-O`. The setup follows Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples), adapted to this package.
 
-The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: the check cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI, and CI runs it on every push. Running it locally needs the same snapshot toolchain and Arm GNU toolchain headers:
+The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: the check cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI. Running it needs the same snapshot toolchain and Arm GNU toolchain headers:
 
 ```sh
 make embedded
@@ -326,7 +336,7 @@ A root Makefile fronts the development lifecycle; a bare `make` (or `make help`)
 | `make outdated` / `make upgrade` | Show / apply updates to the SwiftPM dependencies |
 | `make embedded` | Compile-only device check (Embedded Swift, `armv7em-none-none-eabi`) |
 | `make consumer-test` | Build and run a scratch package depending on playdate-kit |
-| `make check` | Everything CI runs: build, test, embedded, consumer-test |
+| `make check` | The full verification suite: build, test, embedded, consumer-test |
 | `make docs` / `make docs-preview` | Generate / preview the DocC documentation |
 | `make example` / `make example-run` | Build the HelloPlaydate example / open it in the Playdate Simulator |
 | `make clean` | Remove build products of the package and the example |
@@ -356,34 +366,22 @@ The API reference is a DocC catalog. Generate it locally with:
 make docs
 ```
 
-serve it in a local web server with `make docs-preview`, or browse it with Xcode's documentation viewer (Product ▸ Build Documentation). Pushes to `main` publish the rendered docs to GitHub Pages via `.github/workflows/docs.yml` (enable Pages ▸ Source: GitHub Actions in the repository settings once).
+serve it in a local web server with `make docs-preview`, or browse it with Xcode's documentation viewer (Product ▸ Build Documentation).
 
 ## Layout
 
 ```
 Examples/
-  swift.mk          Shared make rules for device builds: toolchain/SDK
-                    discovery and Embedded Swift compile flags
-  HelloPlaydate/    Minimal game buildable into a .pdx for the simulator
-                    (build.sh) or simulator + device (make)
+  swift.mk          Shared make rules for device builds: toolchain/SDK discovery and Embedded Swift compile flags
+  HelloPlaydate/    Minimal game buildable into a .pdx for the simulator (build.sh) or simulator + device (make)
 Scripts/
-  install-pkgconfig.sh   One-time setup: points the "playdate" pkg-config
-                         module at your SDK installation
-  build-embedded.sh      Compile-only device check: Embedded Swift for
-                         armv7em-none-none-eabi with the device ABI (CI)
-  consumer-test.sh       Builds a scratch package depending on playdate-kit
-                         to prove settings propagate to consumers (CI)
+  install-pkgconfig.sh   One-time setup: points the "playdate" pkg-config module at your SDK installation
+  build-embedded.sh      Compile-only device check: Embedded Swift for armv7em-none-none-eabi with the device ABI
+  consumer-test.sh       Builds a scratch package depending on playdate-kit to prove settings propagate to consumers
 Sources/
-  CPlaydate/        System library target: module map + umbrella header
-                    importing pd_api.h from the SDK, plus inline shims for
-                    the variadic log/error functions
-  PlaydateKit/      The Swift bindings, one folder per subsystem (System,
-                    Graphics, Sound, ...) holding one type per file, grouped
-                    by kind (Classes, Structures, Enumerations, Aliases);
-                    Sound is further split into the Source, Signal, Effect,
-                    and Synth subdomains. Also holds the shared Support.swift
-                    helpers and the PlaydateKit.docc documentation catalog
-
+  CPlaydate/        System library target: module map + umbrella header importing pd_api.h from the SDK, plus inline shims for the variadic log/error functions
+  PlaydateKit/      The Swift bindings, one folder per subsystem (System, Graphics, Sound, ...) holding one type per file, grouped by kind (Classes, Structures, Enumerations, Aliases);
+                    Sound is further split into the Source, Signal, Effect, and Synth subdomains. Also holds the shared Support.swift helpers and the PlaydateKit.docc documentation catalog
 Tests/
   PlaydateKit/      Host-runnable tests for the pure value types
 ```

@@ -1,4 +1,6 @@
-internal import CPlaydate
+// A public import: `addFunction(_:name:)` and `pushFunction(_:)` expose the
+// `CFunction` alias of `lua_CFunction` in their public signatures.
+public import CPlaydate
 
 /// The cached `playdate->lua` C API table.
 var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI.unsafelyUnwrapped }
