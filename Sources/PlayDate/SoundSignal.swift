@@ -136,7 +136,7 @@ extension Sound {
             case arpeggiator = 6
             case function = 7
 
-            var cValue: LFOType { LFOType(rawValue) }
+            var cValue: LFOType { LFOType(LFOType.RawValue(rawValue)) }
         }
 
         var function: ((LFO) -> Float)?

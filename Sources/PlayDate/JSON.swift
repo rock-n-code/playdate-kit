@@ -57,12 +57,12 @@ extension JSON {
     /// Converts a C `json_value`, consuming any container box it references.
     private static func convert(_ value: json_value) -> Value {
         switch UInt32(bitPattern: Int32(value.type)) {
-        case kJSONTrue.rawValue: return .bool(true)
-        case kJSONFalse.rawValue: return .bool(false)
-        case kJSONInteger.rawValue: return .int(Int(value.data.intval))
-        case kJSONFloat.rawValue: return .float(value.data.floatval)
-        case kJSONString.rawValue: return .string(String(playdateCString: value.data.stringval) ?? "")
-        case kJSONArray.rawValue, kJSONTable.rawValue:
+        case UInt32(kJSONTrue.rawValue): return .bool(true)
+        case UInt32(kJSONFalse.rawValue): return .bool(false)
+        case UInt32(kJSONInteger.rawValue): return .int(Int(value.data.intval))
+        case UInt32(kJSONFloat.rawValue): return .float(value.data.floatval)
+        case UInt32(kJSONString.rawValue): return .string(String(playdateCString: value.data.stringval) ?? "")
+        case UInt32(kJSONArray.rawValue), UInt32(kJSONTable.rawValue):
             guard let pointer = value.data.arrayval else { return .null }
             return Unmanaged<ValueBox>.fromOpaque(pointer).takeRetainedValue().value
         default: return .null

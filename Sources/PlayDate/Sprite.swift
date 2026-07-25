@@ -103,9 +103,9 @@ public final class Sprite {
         case bounce = 3
 
         init(_ response: SpriteCollisionResponseType) {
-            self = CollisionResponse(rawValue: response.rawValue) ?? .freeze
+            self = CollisionResponse(rawValue: UInt32(response.rawValue)) ?? .freeze
         }
-        var cValue: SpriteCollisionResponseType { SpriteCollisionResponseType(rawValue) }
+        var cValue: SpriteCollisionResponseType { SpriteCollisionResponseType(SpriteCollisionResponseType.RawValue(rawValue)) }
     }
 
     /// Information about a single collision, mirroring `SpriteCollisionInfo`.

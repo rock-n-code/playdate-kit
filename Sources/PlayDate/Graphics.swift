@@ -73,8 +73,8 @@ extension Graphics {
         case clear = 2
         case xor = 3
 
-        init(_ color: LCDSolidColor) { self = SolidColor(rawValue: color.rawValue) ?? .clear }
-        var cValue: LCDSolidColor { LCDSolidColor(rawValue) }
+        init(_ color: LCDSolidColor) { self = SolidColor(rawValue: UInt32(color.rawValue)) ?? .clear }
+        var cValue: LCDSolidColor { LCDSolidColor(LCDSolidColor.RawValue(rawValue)) }
     }
 
     /// How source pixels combine with the destination when drawing.
@@ -88,8 +88,8 @@ extension Graphics {
         case nxor = 6
         case inverted = 7
 
-        init(_ mode: LCDBitmapDrawMode) { self = DrawMode(rawValue: mode.rawValue) ?? .copy }
-        var cValue: LCDBitmapDrawMode { LCDBitmapDrawMode(rawValue) }
+        init(_ mode: LCDBitmapDrawMode) { self = DrawMode(rawValue: UInt32(mode.rawValue)) ?? .copy }
+        var cValue: LCDBitmapDrawMode { LCDBitmapDrawMode(LCDBitmapDrawMode.RawValue(rawValue)) }
     }
 
     /// Mirroring applied when drawing a bitmap.
@@ -99,8 +99,8 @@ extension Graphics {
         case flippedY = 2
         case flippedXY = 3
 
-        init(_ flip: LCDBitmapFlip) { self = BitmapFlip(rawValue: flip.rawValue) ?? .unflipped }
-        var cValue: LCDBitmapFlip { LCDBitmapFlip(rawValue) }
+        init(_ flip: LCDBitmapFlip) { self = BitmapFlip(rawValue: UInt32(flip.rawValue)) ?? .unflipped }
+        var cValue: LCDBitmapFlip { LCDBitmapFlip(LCDBitmapFlip.RawValue(rawValue)) }
     }
 
     /// The end cap style used when drawing lines.
@@ -109,7 +109,7 @@ extension Graphics {
         case square = 1
         case round = 2
 
-        var cValue: LCDLineCapStyle { LCDLineCapStyle(rawValue) }
+        var cValue: LCDLineCapStyle { LCDLineCapStyle(LCDLineCapStyle.RawValue(rawValue)) }
     }
 
     /// The encoding of text passed to the text functions.
@@ -118,7 +118,7 @@ extension Graphics {
         case utf8 = 1
         case utf16LittleEndian = 2
 
-        var cValue: PDStringEncoding { PDStringEncoding(rawValue) }
+        var cValue: PDStringEncoding { PDStringEncoding(PDStringEncoding.RawValue(rawValue)) }
     }
 
     /// The winding rule used by `fillPolygon`.
@@ -126,7 +126,7 @@ extension Graphics {
         case nonZero = 0
         case evenOdd = 1
 
-        var cValue: LCDPolygonFillRule { LCDPolygonFillRule(rawValue) }
+        var cValue: LCDPolygonFillRule { LCDPolygonFillRule(LCDPolygonFillRule.RawValue(rawValue)) }
     }
 
     /// How text wraps in `drawText(in:)`.
@@ -135,7 +135,7 @@ extension Graphics {
         case character = 1
         case word = 2
 
-        var cValue: PDTextWrappingMode { PDTextWrappingMode(rawValue) }
+        var cValue: PDTextWrappingMode { PDTextWrappingMode(PDTextWrappingMode.RawValue(rawValue)) }
     }
 
     /// Horizontal alignment for `drawText(in:)`.
@@ -144,7 +144,7 @@ extension Graphics {
         case center = 1
         case right = 2
 
-        var cValue: PDTextAlignment { PDTextAlignment(rawValue) }
+        var cValue: PDTextAlignment { PDTextAlignment(PDTextAlignment.RawValue(rawValue)) }
     }
 
     /// An integer rectangle mirroring `LCDRect`. `right` and `bottom` are

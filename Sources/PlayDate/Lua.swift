@@ -32,7 +32,7 @@ extension Lua {
         case thread = 7
         case object = 8
 
-        init(_ type: LuaType) { self = Kind(rawValue: type.rawValue) ?? .nil }
+        init(_ type: LuaType) { self = Kind(rawValue: UInt32(type.rawValue)) ?? .nil }
     }
 
     /// A constant published on a registered class.

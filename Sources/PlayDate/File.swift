@@ -27,15 +27,15 @@ extension File {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
 
         /// Read from the game pdx, then the Data directory.
-        public static let read = Options(rawValue: kFileRead.rawValue)
+        public static let read = Options(rawValue: UInt32(kFileRead.rawValue))
         /// Read from the Data directory only.
-        public static let readData = Options(rawValue: kFileReadData.rawValue)
+        public static let readData = Options(rawValue: UInt32(kFileReadData.rawValue))
         /// Write to the Data directory, truncating an existing file.
-        public static let write = Options(rawValue: kFileWrite.rawValue)
+        public static let write = Options(rawValue: UInt32(kFileWrite.rawValue))
         /// Write to the Data directory, appending to an existing file.
-        public static let append = Options(rawValue: kFileAppend.rawValue)
+        public static let append = Options(rawValue: UInt32(kFileAppend.rawValue))
 
-        var cValue: FileOptions { FileOptions(rawValue) }
+        var cValue: FileOptions { FileOptions(FileOptions.RawValue(rawValue)) }
     }
 
     /// Information about a file or directory, mirroring `FileStat`.

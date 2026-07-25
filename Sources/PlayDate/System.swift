@@ -17,8 +17,8 @@ extension System {
     public struct Buttons: OptionSet, Sendable {
         public let rawValue: UInt32
         public init(rawValue: UInt32) { self.rawValue = rawValue }
-        init(_ buttons: PDButtons) { self.rawValue = buttons.rawValue }
-        var cValue: PDButtons { PDButtons(rawValue) }
+        init(_ buttons: PDButtons) { self.rawValue = UInt32(buttons.rawValue) }
+        var cValue: PDButtons { PDButtons(PDButtons.RawValue(rawValue)) }
 
         public static let left = Buttons(kButtonLeft)
         public static let right = Buttons(kButtonRight)
@@ -34,8 +34,8 @@ extension System {
         public init(rawValue: UInt32) { self.rawValue = rawValue }
 
         public static let none = Peripherals([])
-        public static let accelerometer = Peripherals(rawValue: kAccelerometer.rawValue)
-        public static let all = Peripherals(rawValue: kAllPeripherals.rawValue)
+        public static let accelerometer = Peripherals(rawValue: UInt32(kAccelerometer.rawValue))
+        public static let all = Peripherals(rawValue: UInt32(kAllPeripherals.rawValue))
     }
 
     /// The system language.
@@ -46,9 +46,9 @@ extension System {
         case system = 2
 
         init(_ language: PDLanguage) {
-            self = Language(rawValue: language.rawValue) ?? .english
+            self = Language(rawValue: UInt32(language.rawValue)) ?? .english
         }
-        var cValue: PDLanguage { PDLanguage(rawValue) }
+        var cValue: PDLanguage { PDLanguage(PDLanguage.RawValue(rawValue)) }
     }
 
     /// A calendar date and time, mirroring `PDDateTime`.
@@ -97,9 +97,9 @@ extension System {
         public let rawValue: UInt32
         public init(rawValue: UInt32) { self.rawValue = rawValue }
 
-        public static let charging = PowerStatus(rawValue: kPDPowerStatusCharging.rawValue)
-        public static let usb = PowerStatus(rawValue: kPDPowerStatusUsb.rawValue)
-        public static let screws = PowerStatus(rawValue: kPDPowerStatusScrews.rawValue)
+        public static let charging = PowerStatus(rawValue: UInt32(kPDPowerStatusCharging.rawValue))
+        public static let usb = PowerStatus(rawValue: UInt32(kPDPowerStatusUsb.rawValue))
+        public static let screws = PowerStatus(rawValue: UInt32(kPDPowerStatusScrews.rawValue))
     }
 
     /// OS, language, and pdx version information, mirroring `PDInfo`.
@@ -239,7 +239,7 @@ extension System {
     nonisolated(unsafe) private static var buttonCallback: ((Buttons, Bool, UInt32) -> Int32)?
 
     public static func setPeripheralsEnabled(_ peripherals: Peripherals) {
-        api.pointee.setPeripheralsEnabled.unsafelyUnwrapped(PDPeripherals(peripherals.rawValue))
+        api.pointee.setPeripheralsEnabled.unsafelyUnwrapped(PDPeripherals(PDPeripherals.RawValue(peripherals.rawValue)))
     }
 
     /// The most recent accelerometer reading, in g. Enable the accelerometer
@@ -477,7 +477,7 @@ extension System {
     public static var volume: Float { api.pointee.getVolume.unsafelyUnwrapped() }
 
     public static var powerStatus: PowerStatus {
-        PowerStatus(rawValue: api.pointee.getPowerStatus.unsafelyUnwrapped().rawValue)
+        PowerStatus(rawValue: UInt32(api.pointee.getPowerStatus.unsafelyUnwrapped().rawValue))
     }
 
     /// Quits the game and returns to the launcher.

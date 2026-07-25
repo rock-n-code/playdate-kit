@@ -40,7 +40,7 @@ extension Network {
         case unknown = 1
 
         init(_ error: PDNetErr) {
-            self = NetError(rawValue: error.rawValue) ?? .unknown
+            self = NetError(rawValue: Int32(error.rawValue)) ?? .unknown
         }
     }
 
@@ -66,7 +66,7 @@ extension Network {
     }
 
     public static var status: WifiStatus {
-        WifiStatus(rawValue: networkAPI.pointee.getStatus.unsafelyUnwrapped().rawValue) ?? .notConnected
+        WifiStatus(rawValue: UInt32(networkAPI.pointee.getStatus.unsafelyUnwrapped().rawValue)) ?? .notConnected
     }
 
     /// Turns the wifi radio on or off. The completion receives `nil` on
@@ -115,7 +115,7 @@ extension Network {
             // The callback will not be invoked; balance the retain.
             box.release()
         }
-        return AccessReply(rawValue: reply.rawValue) ?? .ask
+        return AccessReply(rawValue: UInt32(reply.rawValue)) ?? .ask
     }
 
     // MARK: - HTTP

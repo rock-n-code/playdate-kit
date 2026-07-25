@@ -43,8 +43,8 @@ extension Sound {
         case monoADPCM = 4
         case stereoADPCM = 5
 
-        init(_ format: SoundFormat) { self = Format(rawValue: format.rawValue) ?? .mono16bit }
-        var cValue: SoundFormat { SoundFormat(rawValue) }
+        init(_ format: SoundFormat) { self = Format(rawValue: UInt32(format.rawValue)) ?? .mono16bit }
+        var cValue: SoundFormat { SoundFormat(SoundFormat.RawValue(rawValue)) }
 
         public var isStereo: Bool { rawValue & 1 != 0 }
         public var is16bit: Bool { rawValue >= 2 && rawValue < 4 }
@@ -94,9 +94,9 @@ extension Sound {
             return snd.pointee.setMicCallback.unsafelyUnwrapped({ _, buffer, length in
                 let samples = UnsafeMutableBufferPointer(start: buffer, count: Int(length))
                 return Sound.micCallback?(samples) == true ? 1 : 0
-            }, nil, CPlaydate.MicSource(source.rawValue)) != 0
+            }, nil, CPlaydate.MicSource(CPlaydate.MicSource.RawValue(source.rawValue))) != 0
         } else {
-            return snd.pointee.setMicCallback.unsafelyUnwrapped(nil, nil, CPlaydate.MicSource(source.rawValue)) != 0
+            return snd.pointee.setMicCallback.unsafelyUnwrapped(nil, nil, CPlaydate.MicSource(CPlaydate.MicSource.RawValue(source.rawValue))) != 0
         }
     }
 
@@ -128,7 +128,7 @@ extension Sound {
             // The callback will not be invoked; balance the retain.
             box.release()
         }
-        return AccessReply(rawValue: reply.rawValue) ?? .ask
+        return AccessReply(rawValue: UInt32(reply.rawValue)) ?? .ask
     }
 
     /// The current headphone and headset-microphone state.

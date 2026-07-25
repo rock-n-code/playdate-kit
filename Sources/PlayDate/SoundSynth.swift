@@ -21,7 +21,7 @@ extension Sound {
             case poDigital = 6
             case poVosim = 7
 
-            var cValue: SoundWaveform { SoundWaveform(rawValue) }
+            var cValue: SoundWaveform { SoundWaveform(SoundWaveform.RawValue(rawValue)) }
         }
 
         /// Custom generator callbacks. Samples are in signed Q8.24 format.

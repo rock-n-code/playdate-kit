@@ -85,7 +85,7 @@ extension Sound {
             case lowShelf = 5
             case highShelf = 6
 
-            var cValue: TwoPoleFilterType { TwoPoleFilterType(rawValue) }
+            var cValue: TwoPoleFilterType { TwoPoleFilterType(TwoPoleFilterType.RawValue(rawValue)) }
         }
 
         private var retainedFrequencyModulator: SignalValue?
