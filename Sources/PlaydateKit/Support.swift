@@ -1,5 +1,10 @@
 internal import CPlaydate
 
+/// Internal C-string helpers shared by the wrappers.
+///
+/// The conversions are implemented manually (rather than with
+/// `String(cString:)` / `withCString`) so the module stays within the
+/// Embedded Swift subset used for device builds.
 extension String {
     /// Creates a string by copying a null-terminated UTF-8 C string.
     init(playdateCString pointer: UnsafePointer<CChar>) {

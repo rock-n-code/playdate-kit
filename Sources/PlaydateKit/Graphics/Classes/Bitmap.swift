@@ -39,6 +39,7 @@ extension Graphics {
 
         // MARK: Properties
 
+        /// The bitmap's dimensions, row stride, and raw storage.
         public var data: Data {
             var width: Int32 = 0, height: Int32 = 0, rowBytes: Int32 = 0
             var mask: UnsafeMutablePointer<UInt8>?
@@ -61,7 +62,9 @@ extension Graphics {
             return size
         }
 
+        /// The bitmap's width, in pixels.
         public var width: Int { size.width }
+        /// The bitmap's height, in pixels.
         public var height: Int { size.height }
 
         /// The color of the pixel at (x, y).
@@ -84,6 +87,7 @@ extension Graphics {
             color.withLCDColor { gfx.pointee.clearBitmap.unsafelyUnwrapped(pointer, $0) }
         }
 
+        /// Returns a new copy of the bitmap.
         public func copy() -> Bitmap {
             Bitmap(pointer: gfx.pointee.copyBitmap.unsafelyUnwrapped(pointer).unsafelyUnwrapped, isOwned: true)
         }

@@ -52,6 +52,7 @@ extension Graphics {
             return (Int(count), Int(width))
         }
 
+        /// The number of bitmaps in the table.
         public var count: Int { info.count }
     }
 }

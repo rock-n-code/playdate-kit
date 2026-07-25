@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->sound` C API table.
 var snd: UnsafePointer<playdate_sound> { Playdate.soundAPI.unsafelyUnwrapped }
 
 /// The sound API: channels, players, synths, sequences, and effects.

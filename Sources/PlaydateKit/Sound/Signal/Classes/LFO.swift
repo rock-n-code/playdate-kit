@@ -89,6 +89,7 @@ extension Sound {
             LFO.api.pointee.setRandomSeed.unsafelyUnwrapped(pointer, seed)
         }
 
+        /// The LFO's current value.
         public var value: Float {
             LFO.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }

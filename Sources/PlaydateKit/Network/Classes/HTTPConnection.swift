@@ -1,9 +1,14 @@
 internal import CPlaydate
 
+/// The cached `playdate->network->http` C API table.
 private var httpAPI: UnsafePointer<playdate_http> { Playdate.httpAPI.unsafelyUnwrapped }
 
 extension Network {
     /// An HTTP connection to a server. Wraps `HTTPConnection`.
+    ///
+    /// The binding stores a back-reference to each wrapper in the
+    /// underlying object's userdata slot so callbacks can recover the
+    /// wrapper; the C userdata slot is therefore reserved by the binding.
     public final class HTTPConnection {
         let pointer: OpaquePointer
 

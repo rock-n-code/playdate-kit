@@ -1,8 +1,13 @@
 internal import CPlaydate
 
+/// The cached `playdate->scoreboards` C API table.
 var scoreboardsAPI: UnsafePointer<playdate_scoreboards> { Playdate.scoreboardsAPI.unsafelyUnwrapped }
 
 /// The scoreboards API for games with online leaderboards.
+///
+/// The C callbacks carry no userdata, so one completion per operation kind
+/// is tracked at a time; starting a second request of the same kind before
+/// the first completes replaces the stored completion.
 public enum Scoreboards {}
 
 extension Scoreboards {

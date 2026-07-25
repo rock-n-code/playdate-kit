@@ -21,8 +21,11 @@ extension Network {
         case notConnectedToAP = -16
         case notImplemented = -17
         case connectionClosed = -18
+        /// An error code not covered by `PDNetErr`.
         case unknown = 1
 
+        /// Creates an error from the C code, or `.unknown` for
+        /// unrecognized codes.
         init(_ error: PDNetErr) {
             self = NetError(rawValue: Int32(error.rawValue)) ?? .unknown
         }

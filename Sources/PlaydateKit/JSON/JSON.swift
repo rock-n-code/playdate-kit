@@ -1,8 +1,13 @@
 internal import CPlaydate
 
+/// The cached `playdate->json` C API table.
 var jsonAPI: UnsafePointer<playdate_json> { Playdate.jsonAPI.unsafelyUnwrapped }
 
 /// The JSON API: decoding to and encoding from a `Value` tree.
+///
+/// The C decoder is callback-based; this wrapper drives it to build a
+/// complete `Value` tree. The encoder is exposed both as a streaming
+/// `Encoder` and as a one-shot `encode(_:)` of a `Value`.
 public enum JSON {}
 
 extension JSON {

@@ -22,18 +22,22 @@ extension Sound {
             }
         }
 
+        /// The attack time, in seconds.
         public func setAttack(_ attack: Float) {
             Envelope.api.pointee.setAttack.unsafelyUnwrapped(pointer, attack)
         }
 
+        /// The decay time, in seconds.
         public func setDecay(_ decay: Float) {
             Envelope.api.pointee.setDecay.unsafelyUnwrapped(pointer, decay)
         }
 
+        /// The sustain level, 0...1.
         public func setSustain(_ sustain: Float) {
             Envelope.api.pointee.setSustain.unsafelyUnwrapped(pointer, sustain)
         }
 
+        /// The release time, in seconds.
         public func setRelease(_ release: Float) {
             Envelope.api.pointee.setRelease.unsafelyUnwrapped(pointer, release)
         }
@@ -66,6 +70,7 @@ extension Sound {
             Envelope.api.pointee.setRateScaling.unsafelyUnwrapped(pointer, scaling, start, end)
         }
 
+        /// The envelope's current value.
         public var value: Float {
             Envelope.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }

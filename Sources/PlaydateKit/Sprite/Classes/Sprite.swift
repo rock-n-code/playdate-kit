@@ -1,10 +1,16 @@
 internal import CPlaydate
 
+/// The cached `playdate->sprite` C API table.
 private var spriteAPI: UnsafePointer<playdate_sprite> { Playdate.spriteAPI.unsafelyUnwrapped }
 
 /// A sprite: a drawable object with position, z-order, and collision
 /// support. Wraps `LCDSprite`. Static members wrap the global sprite
 /// system functions.
+///
+/// The binding stores a back-reference to each `Sprite` wrapper in the
+/// underlying `LCDSprite`'s userdata slot, so callbacks and queries can
+/// recover the wrapper. Do not mix these wrappers with C code that sets
+/// its own sprite userdata; use `userdata` for per-sprite storage instead.
 public final class Sprite {
     let pointer: OpaquePointer
     let isOwned: Bool
@@ -269,11 +275,13 @@ public final class Sprite {
         set { spriteAPI.pointee.setUpdatesEnabled.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }
     }
 
+    /// Whether the sprite participates in collisions.
     public var collisionsEnabled: Bool {
         get { spriteAPI.pointee.collisionsEnabled.unsafelyUnwrapped(pointer) != 0 }
         set { spriteAPI.pointee.setCollisionsEnabled.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }
     }
 
+    /// Whether the sprite is drawn.
     public var isVisible: Bool {
         get { spriteAPI.pointee.isVisible.unsafelyUnwrapped(pointer) != 0 }
         set { spriteAPI.pointee.setVisible.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }

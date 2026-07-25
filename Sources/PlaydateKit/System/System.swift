@@ -4,6 +4,7 @@ internal import CPlaydate
 public enum System {}
 
 extension System {
+    /// The cached `playdate->system` C API table.
     private static var api: UnsafePointer<playdate_sys> { Playdate.systemAPI.unsafelyUnwrapped }
 
     // MARK: - Memory
@@ -34,6 +35,7 @@ extension System {
 
     // MARK: - Time
 
+    /// The system language setting.
     public static var language: Language { Language(api.pointee.getLanguage.unsafelyUnwrapped()) }
 
     /// Milliseconds since the game launched. Wraps around after about 49 days.
@@ -53,21 +55,25 @@ extension System {
     /// High-resolution timer value, in seconds.
     public static var elapsedTime: Float { api.pointee.getElapsedTime.unsafelyUnwrapped() }
 
+    /// Resets the high-resolution timer to zero.
     public static func resetElapsedTime() { api.pointee.resetElapsedTime.unsafelyUnwrapped() }
 
     /// Offset from UTC of the user-set timezone, in seconds.
     public static var timezoneOffset: Int32 { api.pointee.getTimezoneOffset.unsafelyUnwrapped() }
 
+    /// Whether the user prefers 24-hour time display.
     public static var shouldDisplay24HourTime: Bool {
         api.pointee.shouldDisplay24HourTime.unsafelyUnwrapped() != 0
     }
 
+    /// Converts seconds since the 2000-01-01 epoch to a calendar date.
     public static func convertEpochToDateTime(_ epoch: UInt32) -> DateTime {
         var dateTime = PDDateTime()
         api.pointee.convertEpochToDateTime.unsafelyUnwrapped(epoch, &dateTime)
         return DateTime(dateTime)
     }
 
+    /// Converts a calendar date to seconds since the 2000-01-01 epoch.
     public static func convertDateTimeToEpoch(_ dateTime: DateTime) -> UInt32 {
         var cValue = dateTime.cValue
         return api.pointee.convertDateTimeToEpoch.unsafelyUnwrapped(&cValue)
@@ -135,6 +141,8 @@ extension System {
 
     nonisolated(unsafe) private static var buttonCallback: ((Buttons, Bool, UInt32) -> Int32)?
 
+    /// Enables the given peripherals (e.g. the accelerometer), disabling
+    /// the rest.
     public static func setPeripheralsEnabled(_ peripherals: Peripherals) {
         api.pointee.setPeripheralsEnabled.unsafelyUnwrapped(PDPeripherals(PDPeripherals.RawValue(peripherals.rawValue)))
     }
@@ -153,6 +161,7 @@ extension System {
     /// The crank position in degrees; 0 points along the +Y axis.
     public static var crankAngle: Float { api.pointee.getCrankAngle.unsafelyUnwrapped() }
 
+    /// Whether the crank is folded into the device.
     public static var isCrankDocked: Bool { api.pointee.isCrankDocked.unsafelyUnwrapped() != 0 }
 
     /// Disables or enables the crank dock/undock sounds. Returns the previous setting.
@@ -164,6 +173,7 @@ extension System {
     /// Whether the user has the "flipped" system setting enabled.
     public static var isFlipped: Bool { api.pointee.getFlipped.unsafelyUnwrapped() != 0 }
 
+    /// Disables or re-enables the automatic screen lock.
     public static func setAutoLockDisabled(_ disabled: Bool) {
         api.pointee.setAutoLockDisabled.unsafelyUnwrapped(disabled ? 1 : 0)
     }
@@ -272,6 +282,7 @@ extension System {
     /// Battery charge, 0...100.
     public static var batteryPercentage: Float { api.pointee.getBatteryPercentage.unsafelyUnwrapped() }
 
+    /// The battery voltage, in volts.
     public static var batteryVoltage: Float { api.pointee.getBatteryVoltage.unsafelyUnwrapped() }
 
     /// Flushes the CPU instruction cache after loading code at runtime.
@@ -323,6 +334,7 @@ extension System {
     /// The system volume, 0...1.
     public static var volume: Float { api.pointee.getVolume.unsafelyUnwrapped() }
 
+    /// The battery and power supply state.
     public static var powerStatus: PowerStatus {
         PowerStatus(rawValue: UInt32(api.pointee.getPowerStatus.unsafelyUnwrapped().rawValue))
     }

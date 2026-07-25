@@ -21,6 +21,7 @@ extension Sound {
             }
         }
 
+        /// Removes all events from the signal's timeline.
         public func clearEvents() {
             ControlSignal.api.pointee.clearEvents.unsafelyUnwrapped(pointer)
         }
@@ -32,6 +33,7 @@ extension Sound {
                                                          interpolate ? 1 : 0)
         }
 
+        /// Removes the event at `step`, if any.
         public func removeEvent(step: Int) {
             ControlSignal.api.pointee.removeEvent.unsafelyUnwrapped(pointer, Int32(step))
         }

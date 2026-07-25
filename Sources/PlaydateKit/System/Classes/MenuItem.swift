@@ -8,6 +8,8 @@ extension System {
         /// Retains C strings passed to the OS for option titles.
         private var retainedOptionTitles: [UnsafeMutablePointer<CChar>] = []
 
+        /// Wraps the C menu item; fails (and frees the retained titles) if
+        /// `pointer` is nil.
         init?(pointer: OpaquePointer?,
               retainedOptionTitles: [UnsafeMutablePointer<CChar>] = [],
               onSelect: @escaping (MenuItem) -> Void) {

@@ -9,6 +9,8 @@ extension Graphics {
         public var top: Int
         public var bottom: Int
 
+        /// Creates a rect from its edges. `right` and `bottom` are not
+        /// inclusive.
         public init(left: Int, right: Int, top: Int, bottom: Int) {
             self.left = left
             self.right = right
@@ -16,6 +18,7 @@ extension Graphics {
             self.bottom = bottom
         }
 
+        /// Creates a rect from an origin and size.
         public init(x: Int, y: Int, width: Int, height: Int) {
             self.init(left: x, right: x + width, top: y, bottom: y + height)
         }
@@ -30,6 +33,7 @@ extension Graphics {
                     top: Int32(top), bottom: Int32(bottom))
         }
 
+        /// Returns the rect offset by (dx, dy).
         public func translated(dx: Int, dy: Int) -> Rect {
             Rect(left: left + dx, right: right + dx, top: top + dy, bottom: bottom + dy)
         }

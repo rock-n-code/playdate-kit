@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->network` C API table.
 private var networkAPI: UnsafePointer<playdate_network> { Playdate.networkAPI.unsafelyUnwrapped }
 
 /// The network API: wifi status, HTTP, and TCP.
@@ -18,6 +19,7 @@ extension Network {
         error == NET_OK ? nil : NetError(error)
     }
 
+    /// The device's current wifi status.
     public static var status: WifiStatus {
         WifiStatus(rawValue: UInt32(networkAPI.pointee.getStatus.unsafelyUnwrapped().rawValue)) ?? .notConnected
     }

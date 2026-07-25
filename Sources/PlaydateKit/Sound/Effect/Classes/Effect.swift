@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->sound->effect` C API table.
 private var effectAPI: UnsafePointer<playdate_sound_effect> { Playdate.effectAPI.unsafelyUnwrapped }
 
 extension Sound {
@@ -48,6 +49,7 @@ extension Sound {
             effectAPI.pointee.setMix.unsafelyUnwrapped(pointer, level)
         }
 
+        /// Modulates the wet/dry mix.
         public var mixModulator: SignalValue? {
             get { SignalValue.wrap(effectAPI.pointee.getMixModulator.unsafelyUnwrapped(pointer)) }
             set {

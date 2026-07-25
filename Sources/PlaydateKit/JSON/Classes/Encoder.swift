@@ -22,6 +22,7 @@ extension JSON {
         /// The JSON produced so far.
         public var json: String { output.text }
 
+        /// Starts a JSON array.
         public func startArray() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.startArray.unsafelyUnwrapped($0) }
         }
@@ -31,10 +32,12 @@ extension JSON {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.addArrayMember.unsafelyUnwrapped($0) }
         }
 
+        /// Ends the current array.
         public func endArray() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.endArray.unsafelyUnwrapped($0) }
         }
 
+        /// Starts a JSON object.
         public func startTable() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.startTable.unsafelyUnwrapped($0) }
         }
@@ -48,28 +51,34 @@ extension JSON {
             }
         }
 
+        /// Ends the current object.
         public func endTable() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.endTable.unsafelyUnwrapped($0) }
         }
 
+        /// Writes a `null` value.
         public func writeNull() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeNull.unsafelyUnwrapped($0) }
         }
 
+        /// Writes a boolean value.
         public func writeBool(_ value: Bool) {
             withUnsafeMutablePointer(to: &encoder) {
                 (value ? $0.pointee.writeTrue : $0.pointee.writeFalse).unsafelyUnwrapped($0)
             }
         }
 
+        /// Writes an integer value.
         public func writeInt(_ value: Int) {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeInt.unsafelyUnwrapped($0, Int32(value)) }
         }
 
+        /// Writes a floating-point value.
         public func writeDouble(_ value: Double) {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeDouble.unsafelyUnwrapped($0, value) }
         }
 
+        /// Writes a string value.
         public func writeString(_ value: String) {
             value.withPlaydateCString { cString in
                 withUnsafeMutablePointer(to: &encoder) {

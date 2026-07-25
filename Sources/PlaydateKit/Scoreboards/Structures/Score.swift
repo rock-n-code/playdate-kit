@@ -3,9 +3,13 @@ internal import CPlaydate
 extension Scoreboards {
     /// A score on a board.
     public struct Score {
+        /// The score's position on the board, starting at 1.
         public let rank: UInt32
+        /// The score's value.
         public let value: UInt32
+        /// The name of the player who posted the score.
         public let player: String
+        /// The board the score belongs to, when known.
         public let boardID: String?
 
         init(_ score: PDScore) {

@@ -24,6 +24,7 @@ extension Sound {
             DelayLineTap.api.pointee.setTapDelay.unsafelyUnwrapped(pointer, Int32(frames))
         }
 
+        /// Modulates the tap's delay.
         public var delayModulator: SignalValue? {
             get { SignalValue.wrap(DelayLineTap.api.pointee.getTapDelayModulator.unsafelyUnwrapped(pointer)) }
             set {

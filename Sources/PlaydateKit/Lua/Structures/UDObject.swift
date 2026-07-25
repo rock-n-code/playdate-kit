@@ -11,6 +11,8 @@ extension Lua {
             UDObject(pointer: luaAPI.pointee.retainObject.unsafelyUnwrapped(pointer).unsafelyUnwrapped)
         }
 
+        /// Balances a `retain()`, allowing the object to be
+        /// garbage-collected again.
         public func release() {
             luaAPI.pointee.releaseObject.unsafelyUnwrapped(pointer)
         }

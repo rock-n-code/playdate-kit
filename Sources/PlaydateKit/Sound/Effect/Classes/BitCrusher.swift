@@ -28,6 +28,7 @@ extension Sound {
             BitCrusher.api.pointee.setDepth.unsafelyUnwrapped(pointer, depth)
         }
 
+        /// Modulates the crush depth.
         public var depthModulator: SignalValue? {
             get { SignalValue.wrap(BitCrusher.api.pointee.getDepthModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -41,6 +42,7 @@ extension Sound {
             BitCrusher.api.pointee.setDownsampling.unsafelyUnwrapped(pointer, downsampling)
         }
 
+        /// Modulates the downsampling amount.
         public var downsamplingModulator: SignalValue? {
             get { SignalValue.wrap(BitCrusher.api.pointee.getDownsamplingModulator.unsafelyUnwrapped(pointer)) }
             set {

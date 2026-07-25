@@ -1,9 +1,14 @@
 internal import CPlaydate
 
+/// The cached `playdate->lua` C API table.
 var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI.unsafelyUnwrapped }
 
 /// The Lua bridge: registering C functions and classes, and exchanging
 /// values with Lua code.
+///
+/// Lua callbacks are C function pointers without userdata, so functions
+/// registered here must be `@convention(c)` (the `CFunction` typealias),
+/// not capturing closures.
 public enum Lua {}
 
 extension Lua {
@@ -168,26 +173,33 @@ extension Lua {
 
     // MARK: - Return values
 
+    /// Pushes nil onto the stack.
     public static func pushNil() {
         luaAPI.pointee.pushNil.unsafelyUnwrapped()
     }
 
+    /// Pushes a boolean onto the stack.
     public static func push(_ value: Bool) {
         luaAPI.pointee.pushBool.unsafelyUnwrapped(value ? 1 : 0)
     }
 
+    /// Pushes an integer onto the stack.
     public static func push(_ value: Int) {
         luaAPI.pointee.pushInt.unsafelyUnwrapped(Int32(value))
     }
 
+    /// Pushes a float onto the stack.
     public static func push(_ value: Float) {
         luaAPI.pointee.pushFloat.unsafelyUnwrapped(value)
     }
 
+    /// Pushes a string onto the stack.
     public static func push(_ value: String) {
         value.withPlaydateCString { luaAPI.pointee.pushString.unsafelyUnwrapped($0) }
     }
 
+    /// Pushes raw bytes (which may contain embedded zeros) onto the stack
+    /// as a Lua string.
     public static func push(bytes: [UInt8]) {
         bytes.withUnsafeBytes { buffer in
             luaAPI.pointee.pushBytes.unsafelyUnwrapped(
@@ -195,10 +207,12 @@ extension Lua {
         }
     }
 
+    /// Pushes a bitmap onto the stack.
     public static func push(_ bitmap: Graphics.Bitmap) {
         luaAPI.pointee.pushBitmap.unsafelyUnwrapped(bitmap.pointer)
     }
 
+    /// Pushes a sprite onto the stack.
     public static func push(_ sprite: Sprite) {
         luaAPI.pointee.pushSprite.unsafelyUnwrapped(sprite.pointer)
     }

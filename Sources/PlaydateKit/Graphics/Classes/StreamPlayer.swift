@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->graphics->videostream` C API table.
 private var streamAPI: UnsafePointer<playdate_videostream> { Playdate.videoStreamAPI.unsafelyUnwrapped }
 
 extension Graphics {

@@ -45,10 +45,12 @@ extension Sound {
             SequenceTrack.api.pointee.addNoteEvent.unsafelyUnwrapped(pointer, step, length, note, velocity)
         }
 
+        /// Removes the note at `step`, if any.
         public func removeNote(step: UInt32, note: MIDINote) {
             SequenceTrack.api.pointee.removeNoteEvent.unsafelyUnwrapped(pointer, step, note)
         }
 
+        /// Removes all notes from the track.
         public func clearNotes() {
             SequenceTrack.api.pointee.clearNotes.unsafelyUnwrapped(pointer)
         }
@@ -94,6 +96,7 @@ extension Sound {
             return ControlSignal(pointer: signal, isOwned: false)
         }
 
+        /// Removes all control signal events from the track.
         public func clearControlEvents() {
             SequenceTrack.api.pointee.clearControlEvents.unsafelyUnwrapped(pointer)
         }
@@ -103,10 +106,12 @@ extension Sound {
             Int(SequenceTrack.api.pointee.getPolyphony.unsafelyUnwrapped(pointer))
         }
 
+        /// The number of notes currently playing.
         public var activeVoiceCount: Int {
             Int(SequenceTrack.api.pointee.activeVoiceCount.unsafelyUnwrapped(pointer))
         }
 
+        /// Mutes or unmutes the track.
         public func setMuted(_ muted: Bool) {
             SequenceTrack.api.pointee.setMuted.unsafelyUnwrapped(pointer, muted ? 1 : 0)
         }

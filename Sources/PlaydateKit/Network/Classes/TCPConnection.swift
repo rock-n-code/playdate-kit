@@ -1,9 +1,14 @@
 internal import CPlaydate
 
+/// The cached `playdate->network->tcp` C API table.
 private var tcpAPI: UnsafePointer<playdate_tcp> { Playdate.tcpAPI.unsafelyUnwrapped }
 
 extension Network {
     /// A TCP connection to a server. Wraps `TCPConnection`.
+    ///
+    /// The binding stores a back-reference to each wrapper in the
+    /// underlying object's userdata slot so callbacks can recover the
+    /// wrapper; the C userdata slot is therefore reserved by the binding.
     public final class TCPConnection {
         let pointer: OpaquePointer
 

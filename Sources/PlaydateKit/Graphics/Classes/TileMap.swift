@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->graphics->tilemap` C API table.
 private var tilemapAPI: UnsafePointer<playdate_tilemap> { Playdate.tilemapAPI.unsafelyUnwrapped }
 
 extension Graphics {

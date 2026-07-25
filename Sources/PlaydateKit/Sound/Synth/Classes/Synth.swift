@@ -108,18 +108,22 @@ extension Sound {
 
         // MARK: Envelope
 
+        /// The envelope's attack time, in seconds.
         public func setAttackTime(_ attack: Float) {
             Synth.api.pointee.setAttackTime.unsafelyUnwrapped(pointer, attack)
         }
 
+        /// The envelope's decay time, in seconds.
         public func setDecayTime(_ decay: Float) {
             Synth.api.pointee.setDecayTime.unsafelyUnwrapped(pointer, decay)
         }
 
+        /// The envelope's sustain level, 0...1.
         public func setSustainLevel(_ sustain: Float) {
             Synth.api.pointee.setSustainLevel.unsafelyUnwrapped(pointer, sustain)
         }
 
+        /// The envelope's release time, in seconds.
         public func setReleaseTime(_ release: Float) {
             Synth.api.pointee.setReleaseTime.unsafelyUnwrapped(pointer, release)
         }
@@ -142,6 +146,7 @@ extension Sound {
             Synth.api.pointee.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
         }
 
+        /// Modulates the synth's frequency.
         public var frequencyModulator: SignalValue? {
             get { SignalValue.wrap(Synth.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -150,6 +155,7 @@ extension Sound {
             }
         }
 
+        /// Modulates the synth's amplitude.
         public var amplitudeModulator: SignalValue? {
             get { SignalValue.wrap(Synth.api.pointee.getAmplitudeModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -170,12 +176,14 @@ extension Sound {
             Synth.api.pointee.setParameter.unsafelyUnwrapped(pointer, Int32(parameter), value) != 0
         }
 
+        /// Modulates a generator parameter.
         public func setParameterModulator(_ parameter: Int, _ modulator: SignalValue?) {
             retain(modulator)
             Synth.api.pointee.setParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter),
                                                               modulator?.pointer)
         }
 
+        /// The modulator installed on a generator parameter, if any.
         public func parameterModulator(_ parameter: Int) -> SignalValue? {
             SignalValue.wrap(Synth.api.pointee.getParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter)))
         }

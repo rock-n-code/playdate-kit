@@ -3,10 +3,15 @@ internal import CPlaydate
 extension Graphics {
     /// A drawing color: solid or an 8×8 pattern.
     public enum Color: Sendable {
+        /// Solid black.
         case black
+        /// Solid white.
         case white
+        /// Transparent; leaves the destination unchanged.
         case clear
+        /// Inverts the destination pixels.
         case xor
+        /// An 8×8 two-color pattern.
         case pattern(Pattern)
 
         /// Materializes the `LCDColor` for the duration of `body`. Pattern

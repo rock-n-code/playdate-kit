@@ -72,10 +72,13 @@ extension Sound {
             Instrument.api.pointee.setPitchBend.unsafelyUnwrapped(pointer, bend)
         }
 
+        /// The range of `setPitchBend(_:)`, in half-steps.
         public func setPitchBendRange(halfSteps: Float) {
             Instrument.api.pointee.setPitchBendRange.unsafelyUnwrapped(pointer, halfSteps)
         }
 
+        /// Transposes played notes by `halfSteps` (fractional values
+        /// allowed).
         public func setTranspose(halfSteps: Float) {
             Instrument.api.pointee.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
         }
@@ -85,20 +88,24 @@ extension Sound {
             Instrument.api.pointee.noteOff.unsafelyUnwrapped(pointer, note, when)
         }
 
+        /// Releases every playing voice at time `when` (0 = now).
         public func allNotesOff(when: UInt32 = 0) {
             Instrument.api.pointee.allNotesOff.unsafelyUnwrapped(pointer, when)
         }
 
+        /// Sets the volume of the left and right channels, 0...1.
         public func setVolume(left: Float, right: Float) {
             Instrument.api.pointee.setVolume.unsafelyUnwrapped(pointer, left, right)
         }
 
+        /// The volume of the left and right channels.
         public var volume: (left: Float, right: Float) {
             var left: Float = 0, right: Float = 0
             Instrument.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
             return (left, right)
         }
 
+        /// The number of voices currently playing.
         public var activeVoiceCount: Int {
             Int(Instrument.api.pointee.activeVoiceCount.unsafelyUnwrapped(pointer))
         }

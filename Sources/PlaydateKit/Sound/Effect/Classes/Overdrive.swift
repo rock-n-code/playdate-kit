@@ -28,6 +28,7 @@ extension Sound {
             Overdrive.api.pointee.setLimit.unsafelyUnwrapped(pointer, limit)
         }
 
+        /// Modulates the clipping limit.
         public var limitModulator: SignalValue? {
             get { SignalValue.wrap(Overdrive.api.pointee.getLimitModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -41,6 +42,7 @@ extension Sound {
             Overdrive.api.pointee.setOffset.unsafelyUnwrapped(pointer, offset)
         }
 
+        /// Modulates the DC offset.
         public var offsetModulator: SignalValue? {
             get { SignalValue.wrap(Overdrive.api.pointee.getOffsetModulator.unsafelyUnwrapped(pointer)) }
             set {

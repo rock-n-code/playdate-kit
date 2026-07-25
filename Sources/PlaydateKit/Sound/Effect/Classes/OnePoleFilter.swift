@@ -24,6 +24,7 @@ extension Sound {
             OnePoleFilter.api.pointee.setParameter.unsafelyUnwrapped(pointer, parameter)
         }
 
+        /// Modulates the filter's cutoff parameter.
         public var parameterModulator: SignalValue? {
             get { SignalValue.wrap(OnePoleFilter.api.pointee.getParameterModulator.unsafelyUnwrapped(pointer)) }
             set {

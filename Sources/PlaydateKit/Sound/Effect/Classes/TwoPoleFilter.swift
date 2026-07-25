@@ -29,6 +29,7 @@ extension Sound {
             TwoPoleFilter.api.pointee.setFrequency.unsafelyUnwrapped(pointer, frequency)
         }
 
+        /// Modulates the filter's frequency.
         public var frequencyModulator: SignalValue? {
             get { SignalValue.wrap(TwoPoleFilter.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -46,6 +47,7 @@ extension Sound {
             TwoPoleFilter.api.pointee.setResonance.unsafelyUnwrapped(pointer, resonance)
         }
 
+        /// Modulates the filter's resonance.
         public var resonanceModulator: SignalValue? {
             get { SignalValue.wrap(TwoPoleFilter.api.pointee.getResonanceModulator.unsafelyUnwrapped(pointer)) }
             set {

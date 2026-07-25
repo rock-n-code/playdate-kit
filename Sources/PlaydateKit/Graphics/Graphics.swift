@@ -3,6 +3,7 @@ internal import CPlaydate
 /// The graphics API: drawing, bitmaps, fonts, tilemaps, and video.
 public enum Graphics {}
 
+/// The cached `playdate->graphics` C API table.
 var gfx: UnsafePointer<playdate_graphics> { Playdate.graphicsAPI.unsafelyUnwrapped }
 
 extension Graphics {
@@ -50,10 +51,12 @@ extension Graphics {
         gfx.pointee.setScreenClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
     }
 
+    /// Clears the current clip rect.
     public static func clearClipRect() {
         gfx.pointee.clearClipRect.unsafelyUnwrapped()
     }
 
+    /// Sets the end cap style used by subsequent line drawing.
     public static func setLineCapStyle(_ style: LineCapStyle) {
         gfx.pointee.setLineCapStyle.unsafelyUnwrapped(style.cValue)
     }
@@ -71,18 +74,21 @@ extension Graphics {
         gfx.pointee.pushContext.unsafelyUnwrapped(target?.pointer)
     }
 
+    /// Pops the top drawing context off the stack.
     public static func popContext() {
         gfx.pointee.popContext.unsafelyUnwrapped()
     }
 
     // MARK: - Shapes
 
+    /// Draws a line from (x1, y1) to (x2, y2) with the given stroke width.
     public static func drawLine(x1: Int, y1: Int, x2: Int, y2: Int, width: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.drawLine.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2), Int32(width), $0)
         }
     }
 
+    /// Fills the triangle with vertices (x1, y1), (x2, y2), and (x3, y3).
     public static func fillTriangle(x1: Int, y1: Int, x2: Int, y2: Int, x3: Int, y3: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.fillTriangle.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2),
@@ -90,18 +96,22 @@ extension Graphics {
         }
     }
 
+    /// Draws the outline of a rectangle, stroked inside its frame.
     public static func drawRect(x: Int, y: Int, width: Int, height: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.drawRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
         }
     }
 
+    /// Fills the rectangle with `color`.
     public static func fillRect(x: Int, y: Int, width: Int, height: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.fillRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
         }
     }
 
+    /// Draws the outline of a rectangle with rounded corners, stroked with
+    /// `lineWidth`.
     public static func drawRoundRect(x: Int, y: Int, width: Int, height: Int, radius: Int,
                                      lineWidth: Int, color: Color) {
         color.withLCDColor {
@@ -110,6 +120,7 @@ extension Graphics {
         }
     }
 
+    /// Fills a rectangle with rounded corners.
     public static func fillRoundRect(x: Int, y: Int, width: Int, height: Int, radius: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.fillRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
@@ -127,6 +138,8 @@ extension Graphics {
         }
     }
 
+    /// Fills an ellipse inside the rect. If the angles differ, fills the
+    /// wedge from `startAngle` to `endAngle` (clockwise degrees, 0 at top).
     public static func fillEllipse(x: Int, y: Int, width: Int, height: Int,
                                    startAngle: Float = 0, endAngle: Float = 0, color: Color) {
         color.withLCDColor {
@@ -202,6 +215,7 @@ extension Graphics {
         gfx.pointee.setTextTracking.unsafelyUnwrapped(Int32(tracking))
     }
 
+    /// The extra space currently added between letters, in pixels.
     public static var textTracking: Int {
         Int(gfx.pointee.getTextTracking.unsafelyUnwrapped())
     }

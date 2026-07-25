@@ -47,10 +47,12 @@ extension Sound {
             }
         }
 
+        /// Stops playback.
         public func stop() {
             Sequence.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
+        /// Whether the sequence is playing.
         public var isPlaying: Bool {
             Sequence.api.pointee.isPlaying.unsafelyUnwrapped(pointer) != 0
         }

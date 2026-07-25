@@ -46,10 +46,12 @@ extension Sound {
             SamplePlayer.api.pointee.play.unsafelyUnwrapped(pointer, Int32(repeatCount), rate) != 0
         }
 
+        /// Stops playback.
         public func stop() {
             SamplePlayer.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
+        /// Pauses or resumes playback.
         public func setPaused(_ paused: Bool) {
             SamplePlayer.api.pointee.setPaused.unsafelyUnwrapped(pointer, paused ? 1 : 0)
         }

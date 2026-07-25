@@ -1,5 +1,6 @@
 internal import CPlaydate
 
+/// The cached `playdate->file` C API table.
 var fileAPI: UnsafePointer<playdate_file> { Playdate.fileAPI.unsafelyUnwrapped }
 
 /// The most recent file system error as a thrown error.
@@ -8,6 +9,9 @@ func lastFileError() -> PlaydateError {
 }
 
 /// The file API: access to the game's Data directory and pdx contents.
+///
+/// Paths are relative to the game's Data directory (read/write) or the
+/// game's pdx (read-only), depending on the mode used to open them.
 public enum File {}
 
 extension File {

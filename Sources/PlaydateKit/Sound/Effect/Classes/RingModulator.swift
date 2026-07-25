@@ -23,6 +23,7 @@ extension Sound {
             RingModulator.api.pointee.setFrequency.unsafelyUnwrapped(pointer, frequency)
         }
 
+        /// Modulates the modulation frequency.
         public var frequencyModulator: SignalValue? {
             get { SignalValue.wrap(RingModulator.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {

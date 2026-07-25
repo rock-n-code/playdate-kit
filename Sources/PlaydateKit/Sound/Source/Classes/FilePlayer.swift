@@ -52,10 +52,12 @@ extension Sound {
             FilePlayer.api.pointee.play.unsafelyUnwrapped(pointer, Int32(repeatCount)) != 0
         }
 
+        /// Pauses playback.
         public func pause() {
             FilePlayer.api.pointee.pause.unsafelyUnwrapped(pointer)
         }
 
+        /// Stops playback.
         public func stop() {
             FilePlayer.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
