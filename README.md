@@ -36,12 +36,12 @@ Device builds additionally need:
 The `CPlaydate` target resolves `pd_api.h` through a `playdate` pkg-config module, so the package works as a normal SwiftPM dependency without unsafe build flags. Generate the pkg-config file once per machine:
 
 ```sh
-Scripts/install-pkgconfig.sh
+make setup
 ```
 
-The script locates the SDK via `PLAYDATE_SDK_PATH` (default `~/Developer/PlaydateSDK`) and writes `playdate.pc` into a directory SwiftPM searches by default (`/usr/local/lib/pkgconfig`). Pass a custom destination as an argument if you prefer another location on your `PKG_CONFIG_PATH`.
+The target locates the SDK via `PLAYDATE_SDK_PATH` (default `~/Developer/PlaydateSDK`) and writes `playdate.pc` into a directory SwiftPM searches by default (`/usr/local/lib/pkgconfig`). If you prefer another location on your `PKG_CONFIG_PATH`, run the underlying script directly with the destination as an argument: `Scripts/install-pkgconfig.sh <directory>`.
 
-If Xcode had the package open before you ran the script, make it re-read the manifest (File ▸ Packages ▸ Reset Package Caches) — Xcode caches package resolution and won't notice the new `.pc` file on its own.
+If Xcode had the package open before you ran the setup, make it re-read the manifest (File ▸ Packages ▸ Reset Package Caches) — Xcode caches package resolution and won't notice the new `.pc` file on its own.
 
 ## Adding the dependency
 
@@ -307,16 +307,17 @@ Shipping a `.pdx` needs the Playdate toolchain on top:
 
 [`Examples/swift.mk`](Examples/swift.mk) packages the device pipeline: it locates the SDK and a Swift snapshot toolchain, compiles the `PlaydateKit` wrapper as a module-aliased Embedded Swift module, and hooks the game objects into the SDK's `common.mk`. A game needs only a short Makefile on top — [`Examples/HelloPlaydate/Makefile`](Examples/HelloPlaydate/Makefile) is the template, and `make` in that directory produces a `.pdx` containing both the device binary and the simulator dylib. Swift code is compiled `-Osize` by default (measured ~15% smaller than `-O` on the example); override with `make SWIFT_OPT=-O`. The setup follows Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples), adapted to this package.
 
-The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI, and CI runs it on every push. Running it locally needs the same snapshot toolchain and Arm GNU toolchain headers:
+The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: the check cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI, and CI runs it on every push. Running it locally needs the same snapshot toolchain and Arm GNU toolchain headers:
 
 ```sh
-SWIFT_BIN=~/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<date>.xctoolchain/usr/bin/swift \
-    Scripts/build-embedded.sh
+make embedded
 ```
+
+The target picks up a snapshot toolchain installed at `~/Library/Developer/Toolchains` automatically; point it at another one with `make embedded SWIFT_BIN=<path to swift>`.
 
 ## Make targets
 
-A root Makefile fronts the development lifecycle; a bare `make` (or `make help`) lists the targets. `build`, `test`, `docs`, and `consumer-test` need only Xcode's toolchain (after the one-time `make setup`); `embedded` and the example targets additionally need the device toolchains above — `embedded` picks up a snapshot toolchain installed at `~/Library/Developer/Toolchains` automatically, or takes `SWIFT_BIN=<path to swift>`.
+A root Makefile fronts the development lifecycle; a bare `make` (or `make help`) lists the targets. `build`, `test`, `docs`, and `consumer-test` need only Xcode's toolchain (after the one-time `make setup`); `embedded` and the example targets additionally need the device toolchains above.
 
 | Target | Effect |
 |---|---|
@@ -352,10 +353,10 @@ Sideload the device build from the Playdate Simulator (Device ▸ Upload Game to
 The API reference is a DocC catalog. Generate it locally with:
 
 ```sh
-swift package generate-documentation --target PlaydateKit
+make docs
 ```
 
-or browse it with Xcode's documentation viewer (Product ▸ Build Documentation). Pushes to `main` publish the rendered docs to GitHub Pages via `.github/workflows/docs.yml` (enable Pages ▸ Source: GitHub Actions in the repository settings once).
+serve it in a local web server with `make docs-preview`, or browse it with Xcode's documentation viewer (Product ▸ Build Documentation). Pushes to `main` publish the rendered docs to GitHub Pages via `.github/workflows/docs.yml` (enable Pages ▸ Source: GitHub Actions in the repository settings once).
 
 ## Layout
 
@@ -376,9 +377,13 @@ Sources/
   CPlaydate/        System library target: module map + umbrella header
                     importing pd_api.h from the SDK, plus inline shims for
                     the variadic log/error functions
-  PlaydateKit/      The Swift bindings, one file per subsystem
-                    (Sound and Graphics are split across several files),
-                    plus the PlaydateKit.docc documentation catalog
+  PlaydateKit/      The Swift bindings, one folder per subsystem (System,
+                    Graphics, Sound, ...) holding one type per file, grouped
+                    by kind (Classes, Structures, Enumerations, Aliases);
+                    Sound is further split into the Source, Signal, Effect,
+                    and Synth subdomains. Also holds the shared Support.swift
+                    helpers and the PlaydateKit.docc documentation catalog
+
 Tests/
   PlaydateKit/      Host-runnable tests for the pure value types
 ```
