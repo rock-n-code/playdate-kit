@@ -26,6 +26,11 @@ All ten C subsystems are covered:
 - The [Playdate SDK](https://play.date/dev/) (3.1.1 or later). The SDK is not vendored into this repository.
 - Swift 6.4 tools or later.
 
+Device builds additionally need:
+
+- A [swift.org development snapshot toolchain](https://www.swift.org/install/macos/) — Xcode's toolchain does not ship the Embedded Swift stdlib for the device target (`armv7em-none-none-eabi`).
+- The [Arm GNU toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) (`arm-none-eabi-gcc`) on your `PATH`, which the Playdate SDK's build support uses to compile and link the device binary.
+
 ### One-time SDK setup
 
 The `CPlaydate` target resolves `pd_api.h` through a `playdate` pkg-config module, so the package works as a normal SwiftPM dependency without unsafe build flags. Generate the pkg-config file once per machine:
@@ -186,6 +191,12 @@ let (actual, collisions) = ball.moveWithCollisions(goalX: goalX, goalY: goalY)
 for collision in collisions where collision.other.tag == Tags.brick {
     collision.other.remove()
 }
+
+// Every collision/query API also has a visitor form that iterates the
+// results in place instead of building an array — useful in hot loops:
+ball.moveWithCollisions(goalX: goalX, goalY: goalY) { collision in
+    if collision.other.tag == Tags.brick { collision.other.remove() }
+}
 ```
 
 Sprite callbacks (`setUpdateFunction`, `setDrawFunction`, `setCollisionResponseFunction`) receive the Swift wrapper back. The C-level sprite userdata slot is reserved by the binding for that recovery — use the `userdata` property on `Sprite` for your own per-sprite storage instead.
@@ -291,27 +302,34 @@ This package builds as a plain Swift library, which is how you develop and unit-
 
 Shipping a `.pdx` needs the Playdate toolchain on top:
 
-- **Simulator** builds compile your game as a host dylib placed in the pdx.
-- **Device** builds require Embedded Swift for ARM Cortex-M7 (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`).
+- **Simulator** builds compile your game as a host dylib placed in the pdx (`Examples/HelloPlaydate/build.sh` shows the SwiftPM-based flow).
+- **Device** builds cross-compile with Embedded Swift for ARM Cortex-M7 (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`, `-fshort-enums` to match the firmware ABI) and link through the SDK's own make infrastructure.
 
-The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled, and CI runs it on every push. Running it locally needs a swift.org development snapshot toolchain (Xcode's toolchain doesn't ship the bare-metal embedded stdlib) and the Arm GNU toolchain headers:
+[`Examples/swift.mk`](Examples/swift.mk) packages the device pipeline: it locates the SDK and a Swift snapshot toolchain, compiles the `PlayDate` wrapper as a module-aliased Embedded Swift module, and hooks the game objects into the SDK's `common.mk`. A game needs only a short Makefile on top — [`Examples/HelloPlaydate/Makefile`](Examples/HelloPlaydate/Makefile) is the template, and `make` in that directory produces a `.pdx` containing both the device binary and the simulator dylib. Swift code is compiled `-Osize` by default (measured ~15% smaller than `-O` on the example); override with `make SWIFT_OPT=-O`. The setup follows Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples), adapted to this package.
+
+The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI, and CI runs it on every push. Running it locally needs the same snapshot toolchain and Arm GNU toolchain headers:
 
 ```sh
 SWIFT_BIN=~/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<date>.xctoolchain/usr/bin/swift \
     Scripts/build-embedded.sh
 ```
 
-See Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples) for a working Makefile/toolchain setup that this library slots into.
-
 ## Example
 
-[`Examples/HelloPlaydate`](Examples/HelloPlaydate) is a complete minimal game — bouncing box, crank needle, button handling, a system menu item — that builds into a runnable simulator `.pdx`:
+[`Examples/HelloPlaydate`](Examples/HelloPlaydate) is a complete minimal game — bouncing box, crank needle, button handling, a system menu item — that builds into a runnable `.pdx`:
 
 ```sh
 cd Examples/HelloPlaydate
+
+# Simulator only (plain SwiftPM, no extra toolchains):
 ./build.sh
 open -a "$HOME/Developer/PlaydateSDK/bin/Playdate Simulator.app" HelloPlaydate.pdx
+
+# Device + simulator (snapshot toolchain and arm-none-eabi-gcc required):
+make
 ```
+
+Sideload the device build from the Playdate Simulator (Device ▸ Upload Game to Device) or with the SDK's `pdutil`.
 
 ## Documentation
 
@@ -327,12 +345,15 @@ or browse it with Xcode's documentation viewer (Product ▸ Build Documentation)
 
 ```
 Examples/
-  HelloPlaydate/    Minimal game buildable into a simulator .pdx
+  swift.mk          Shared make rules for device builds: toolchain/SDK
+                    discovery and Embedded Swift compile flags
+  HelloPlaydate/    Minimal game buildable into a .pdx for the simulator
+                    (build.sh) or simulator + device (make)
 Scripts/
   install-pkgconfig.sh   One-time setup: points the "playdate" pkg-config
                          module at your SDK installation
   build-embedded.sh      Compile-only device check: Embedded Swift for
-                         armv7em-none-none-eabi (run by CI)
+                         armv7em-none-none-eabi with the device ABI (CI)
   consumer-test.sh       Builds a scratch package depending on play-date
                          to prove settings propagate to consumers (CI)
 Sources/
