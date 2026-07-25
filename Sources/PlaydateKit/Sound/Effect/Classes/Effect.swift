@@ -38,10 +38,16 @@ extension Sound {
         }
 
         deinit {
-            if isOwned {
-                effectAPI.pointee.freeEffect.unsafelyUnwrapped(pointer)
+            // Subclasses free the C object in their own deinit with the
+            // subsystem's type-specific free (freeDelayLine, freeOverdrive,
+            // ...); freeing here as well would double-free. The base class
+            // owns only the custom-processor effects it creates itself.
+            if let processorBox {
+                if isOwned {
+                    effectAPI.pointee.freeEffect.unsafelyUnwrapped(pointer)
+                }
+                processorBox.release()
             }
-            processorBox?.release()
         }
 
         /// The wet/dry mix: 1 is fully processed, 0 fully dry.

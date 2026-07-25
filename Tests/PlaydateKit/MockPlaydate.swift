@@ -20,6 +20,10 @@ enum Mock {
     nonisolated(unsafe) static let spriteAPI = UnsafeMutablePointer<playdate_sprite>.allocate(capacity: 1)
     nonisolated(unsafe) static let soundAPI = UnsafeMutablePointer<playdate_sound>.allocate(capacity: 1)
     nonisolated(unsafe) static let channelAPI = UnsafeMutablePointer<playdate_sound_channel>.allocate(capacity: 1)
+    nonisolated(unsafe) static let synthAPI = UnsafeMutablePointer<playdate_sound_synth>.allocate(capacity: 1)
+    nonisolated(unsafe) static let soundEffectAPI = UnsafeMutablePointer<playdate_sound_effect>.allocate(capacity: 1)
+    nonisolated(unsafe) static let lfoAPI = UnsafeMutablePointer<playdate_sound_lfo>.allocate(capacity: 1)
+    nonisolated(unsafe) static let delayLineAPI = UnsafeMutablePointer<playdate_sound_effect_delayline>.allocate(capacity: 1)
     nonisolated(unsafe) static let fileAPI = UnsafeMutablePointer<playdate_file>.allocate(capacity: 1)
     nonisolated(unsafe) static let jsonAPI = UnsafeMutablePointer<playdate_json>.allocate(capacity: 1)
     nonisolated(unsafe) static let apiStruct = UnsafeMutablePointer<PlaydateAPI>.allocate(capacity: 1)
@@ -39,6 +43,19 @@ enum Mock {
     nonisolated(unsafe) static var spriteUpdateCallback: (@convention(c) (OpaquePointer?) -> Void)?
     nonisolated(unsafe) static var audioCallback: (@convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<Int16>?, UnsafeMutablePointer<Int16>?, Int32) -> Int32)?
     nonisolated(unsafe) static var audioContext: UnsafeMutableRawPointer?
+    /// Generator registrations per synth. The OS deallocs a generator's
+    /// userdata when the generator is replaced or its synth is freed; the
+    /// mock mirrors that contract.
+    struct SynthGenerator {
+        var render: (@convention(c) (UnsafeMutableRawPointer?, UnsafeMutablePointer<Int32>?, UnsafeMutablePointer<Int32>?, Int32, UInt32, Int32) -> Int32)?
+        var dealloc: (@convention(c) (UnsafeMutableRawPointer?) -> Void)?
+        var userdata: UnsafeMutableRawPointer?
+    }
+    nonisolated(unsafe) static var synthGenerators: [OpaquePointer: SynthGenerator] = [:]
+    /// The last custom-effect proc handed to `newEffect`, plus each
+    /// effect's userdata, for re-invocation by tests.
+    nonisolated(unsafe) static var effectProc: (@convention(c) (OpaquePointer?, UnsafeMutablePointer<Int32>?, UnsafeMutablePointer<Int32>?, Int32, Int32) -> Int32)?
+    nonisolated(unsafe) static var effectUserdata: [OpaquePointer: UnsafeMutableRawPointer] = [:]
 
     static func record(_ event: String) {
         events.append(event)
@@ -72,6 +89,9 @@ enum Mock {
         spriteUpdateCallback = nil
         audioCallback = nil
         audioContext = nil
+        synthGenerators = [:]
+        effectProc = nil
+        effectUserdata = [:]
     }
 
     private static func install() {
@@ -281,6 +301,86 @@ enum Mock {
         channelAPI.pointee.removeSource = { _, _ in
             Mock.record("channelRemoveSource")
             return 1
+        }
+        channelAPI.pointee.addSource = { _, _ in
+            Mock.record("channelAddSource")
+            return 1
+        }
+
+        soundAPI.pointee.synth = UnsafePointer(synthAPI)
+        synthAPI.initialize(to: playdate_sound_synth())
+        synthAPI.pointee.newSynth = {
+            Mock.record("newSynth")
+            return Mock.fakePointer()
+        }
+        synthAPI.pointee.freeSynth = { synth in
+            Mock.record("freeSynth")
+            // Freeing a synth deallocs its generator's userdata.
+            if let synth, let generator = Mock.synthGenerators.removeValue(forKey: synth) {
+                generator.dealloc?(generator.userdata)
+            }
+        }
+        synthAPI.pointee.setGenerator = { synth, _, render, _, _, _, dealloc, _, userdata in
+            Mock.record("setGenerator")
+            guard let synth else { return }
+            // Replacing a generator deallocs the previous one first.
+            if let previous = Mock.synthGenerators[synth] {
+                previous.dealloc?(previous.userdata)
+            }
+            Mock.synthGenerators[synth] = SynthGenerator(render: render, dealloc: dealloc,
+                                                         userdata: userdata)
+        }
+        synthAPI.pointee.setFrequencyModulator = { _, _ in
+            Mock.record("setFrequencyModulator")
+        }
+
+        soundAPI.pointee.lfo = UnsafePointer(lfoAPI)
+        lfoAPI.initialize(to: playdate_sound_lfo())
+        lfoAPI.pointee.newLFO = { _ in
+            Mock.record("newLFO")
+            return Mock.fakePointer()
+        }
+        lfoAPI.pointee.freeLFO = { _ in
+            Mock.record("freeLFO")
+        }
+
+        soundAPI.pointee.effect = UnsafePointer(soundEffectAPI)
+        soundEffectAPI.initialize(to: playdate_sound_effect())
+        soundEffectAPI.pointee.newEffect = { proc, userdata in
+            Mock.record("newEffect")
+            let pointer = Mock.fakePointer()
+            Mock.effectProc = proc
+            if let userdata {
+                Mock.effectUserdata[pointer] = userdata
+            }
+            return pointer
+        }
+        soundEffectAPI.pointee.freeEffect = { effect in
+            Mock.record("freeEffect")
+            if let effect {
+                Mock.effectUserdata[effect] = nil
+            }
+        }
+        soundEffectAPI.pointee.getUserdata = { effect in
+            guard let effect else { return nil }
+            return Mock.effectUserdata[effect]
+        }
+
+        soundEffectAPI.pointee.delayline = UnsafePointer(delayLineAPI)
+        delayLineAPI.initialize(to: playdate_sound_effect_delayline())
+        delayLineAPI.pointee.newDelayLine = { _, _ in
+            Mock.record("newDelayLine")
+            return Mock.fakePointer()
+        }
+        delayLineAPI.pointee.freeDelayLine = { _ in
+            Mock.record("freeDelayLine")
+        }
+        delayLineAPI.pointee.addTap = { _, _ in
+            Mock.record("addTap")
+            return Mock.fakePointer()
+        }
+        delayLineAPI.pointee.freeTap = { _ in
+            Mock.record("freeTap")
         }
     }
 

@@ -182,6 +182,148 @@ struct WrapperTests {
         #expect(Sound.CallbackSource.live.count == baseline)
     }
 
+    // MARK: Sound ownership graph
+
+    @Test func channelRetainsAddedSourceUntilRemoved() {
+        let channel = Sound.Channel()
+        weak var weakSynth: Sound.Synth?
+        do {
+            let synth = Sound.Synth()
+            weakSynth = synth
+            channel.addSource(synth)
+        }
+        #expect(weakSynth != nil)   // the channel keeps the source alive
+        #expect(Mock.eventCount("freeSynth") == 0)
+
+        if let synth = weakSynth {
+            channel.removeSource(synth)
+        }
+        #expect(weakSynth == nil)
+        #expect(Mock.eventCount("freeSynth") == 1)
+    }
+
+    @Test func synthRetainsItsModulatorWhileAlive() {
+        weak var weakLFO: Sound.LFO?
+        do {
+            let synth = Sound.Synth()
+            do {
+                let lfo = Sound.LFO()
+                weakLFO = lfo
+                synth.frequencyModulator = lfo
+            }
+            #expect(weakLFO != nil)   // the synth retains the modulator
+            #expect(Mock.eventCount("freeLFO") == 0)
+        }
+        #expect(weakLFO == nil)
+        #expect(Mock.eventCount("freeLFO") == 1)
+    }
+
+    @Test func synthGeneratorDispatchesAndIsReleasedWithTheSynth() {
+        final class Token {}
+        weak var weakToken: Token?
+        var rendered = 0
+
+        do {
+            let synth = Sound.Synth()
+            let token = Token()
+            weakToken = token
+            synth.setGenerator(stereo: false, .init(render: { left, _, _, _ in
+                _ = token
+                rendered += 1
+                return left.count
+            }))
+
+            // Simulate the audio engine rendering through the trampoline.
+            let generator = try! #require(Mock.synthGenerators[synth.pointer])
+            var samples = [Int32](repeating: 0, count: 8)
+            let frames = samples.withUnsafeMutableBufferPointer { buffer in
+                generator.render?(generator.userdata, buffer.baseAddress, nil,
+                                  Int32(buffer.count), 0, 0)
+            }
+            #expect(frames == 8)
+            #expect(rendered == 1)
+            #expect(weakToken != nil)
+        }
+        // freeSynth deallocs the generator userdata, releasing the box and
+        // the closure's captures with it.
+        #expect(Mock.eventCount("freeSynth") == 1)
+        #expect(weakToken == nil)
+    }
+
+    @Test func replacingASynthGeneratorReleasesThePreviousOne() {
+        final class Token {}
+        weak var firstToken: Token?
+
+        let synth = Sound.Synth()
+        do {
+            let token = Token()
+            firstToken = token
+            synth.setGenerator(stereo: false, .init(render: { left, _, _, _ in
+                _ = token
+                return left.count
+            }))
+        }
+        #expect(firstToken != nil)
+
+        synth.setGenerator(stereo: false, .init(render: { left, _, _, _ in left.count }))
+        #expect(firstToken == nil)   // the OS deallocs the replaced generator
+    }
+
+    @Test func effectProcessorDispatchesAndIsReleasedOnDeinit() {
+        final class Token {}
+        weak var weakToken: Token?
+        var processed = 0
+
+        do {
+            let token = Token()
+            weakToken = token
+            let effect = Sound.Effect(processor: { left, right, _ in
+                _ = token
+                processed += left.count
+                #expect(right == nil)
+                return true
+            })
+
+            // Drive the effect the way the OS would: through the registered
+            // proc, which recovers the box from the effect's userdata.
+            var samples = [Int32](repeating: 0, count: 4)
+            let active = samples.withUnsafeMutableBufferPointer { buffer in
+                Mock.effectProc?(effect.pointer, buffer.baseAddress, nil,
+                                 Int32(buffer.count), 1)
+            }
+            #expect(active == 1)
+            #expect(processed == 4)
+        }
+        #expect(Mock.eventCount("freeEffect") == 1)
+        #expect(weakToken == nil)
+    }
+
+    @Test func effectSubclassIsFreedExactlyOnceWithItsOwnFree() {
+        do {
+            let line = Sound.DelayLine(length: 256)
+            _ = line
+        }
+        #expect(Mock.eventCount("freeDelayLine") == 1)
+        // The base Effect deinit must not also free the subclass's object.
+        #expect(Mock.eventCount("freeEffect") == 0)
+    }
+
+    @Test func delayLineTapKeepsItsDelayLineAlive() {
+        weak var weakLine: Sound.DelayLine?
+        var tap: Sound.DelayLineTap?
+        do {
+            let line = Sound.DelayLine(length: 256)
+            weakLine = line
+            tap = line.addTap(delay: 128)
+        }
+        #expect(weakLine != nil)   // the tap retains its delay line
+        #expect(Mock.eventCount("freeDelayLine") == 0)
+
+        tap = nil
+        #expect(Mock.eventCount("freeTap") == 1)
+        #expect(Mock.eventCount("freeDelayLine") == 1)
+    }
+
     // MARK: File
 
     @Test func fileHandleReadsWritesAndClosesExactlyOnce() throws {
