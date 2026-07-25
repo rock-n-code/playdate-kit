@@ -33,6 +33,12 @@ extension Graphics {
                     top: Int32(top), bottom: Int32(bottom))
         }
 
+        /// The rect's width.
+        public var width: Int { right - left }
+
+        /// The rect's height.
+        public var height: Int { bottom - top }
+
         /// Returns the rect offset by (dx, dy).
         public func translated(dx: Int, dy: Int) -> Rect {
             Rect(left: left + dx, right: right + dx, top: top + dy, bottom: bottom + dy)

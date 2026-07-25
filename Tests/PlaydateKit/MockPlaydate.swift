@@ -186,6 +186,12 @@ enum Mock {
             Mock.record("getTableBitmap(\(index))")
             return index == 0 ? Mock.fakePointer() : nil
         }
+        gfxAPI.pointee.getBitmapTableInfo = { _, count, cellsWide in
+            Mock.record("getBitmapTableInfo")
+            // One bitmap, matching getTableBitmap vending index 0 only.
+            count?.pointee = 1
+            cellsWide?.pointee = 1
+        }
     }
 
     // MARK: - Sprite

@@ -89,6 +89,16 @@ struct WrapperTests {
         #expect(Mock.eventCount("freeBitmapTable") == 1)
     }
 
+    @Test func bitmapTableIsACollection() {
+        let table = Graphics.BitmapTable(count: 4, width: 8, height: 8)
+        #expect(table.count == 1)   // the mock reports a single bitmap
+        #expect(table.first != nil)
+
+        var visited = 0
+        for _ in table { visited += 1 }
+        #expect(visited == 1)
+    }
+
     // MARK: Sprite
 
     @Test func spriteUserdataRecoversWrapperInCallbacks() {

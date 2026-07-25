@@ -56,3 +56,17 @@ extension Graphics {
         public var count: Int { info.count }
     }
 }
+
+extension Graphics.BitmapTable: RandomAccessCollection {
+    public var startIndex: Int { 0 }
+    public var endIndex: Int { count }
+
+    /// The bitmap at `position`. The bitmap references storage owned by the
+    /// table; keep the table alive while using it.
+    public subscript(position: Int) -> Graphics.Bitmap {
+        guard let bitmap = bitmap(at: position) else {
+            preconditionFailure("bitmap table index out of range")
+        }
+        return bitmap
+    }
+}

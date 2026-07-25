@@ -46,9 +46,19 @@ extension Graphics {
         gfx.pointee.setClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
     }
 
+    /// Sets the clip rect in world coordinates (affected by the draw offset).
+    public static func setClipRect(_ rect: Rect) {
+        setClipRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height)
+    }
+
     /// Sets the clip rect in screen coordinates (unaffected by the draw offset).
     public static func setScreenClipRect(x: Int, y: Int, width: Int, height: Int) {
         gfx.pointee.setScreenClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
+    }
+
+    /// Sets the clip rect in screen coordinates (unaffected by the draw offset).
+    public static func setScreenClipRect(_ rect: Rect) {
+        setScreenClipRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height)
     }
 
     /// Clears the current clip rect.
@@ -103,11 +113,21 @@ extension Graphics {
         }
     }
 
+    /// Draws the outline of a rectangle, stroked inside its frame.
+    public static func drawRect(_ rect: Rect, color: Color) {
+        drawRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height, color: color)
+    }
+
     /// Fills the rectangle with `color`.
     public static func fillRect(x: Int, y: Int, width: Int, height: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.fillRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
         }
+    }
+
+    /// Fills the rectangle with `color`.
+    public static func fillRect(_ rect: Rect, color: Color) {
+        fillRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height, color: color)
     }
 
     /// Draws the outline of a rectangle with rounded corners, stroked with
@@ -120,12 +140,25 @@ extension Graphics {
         }
     }
 
+    /// Draws the outline of a rectangle with rounded corners, stroked with
+    /// `lineWidth`.
+    public static func drawRoundRect(_ rect: Rect, radius: Int, lineWidth: Int, color: Color) {
+        drawRoundRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height,
+                      radius: radius, lineWidth: lineWidth, color: color)
+    }
+
     /// Fills a rectangle with rounded corners.
     public static func fillRoundRect(x: Int, y: Int, width: Int, height: Int, radius: Int, color: Color) {
         color.withLCDColor {
             gfx.pointee.fillRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                                 Int32(radius), $0)
         }
+    }
+
+    /// Fills a rectangle with rounded corners.
+    public static func fillRoundRect(_ rect: Rect, radius: Int, color: Color) {
+        fillRoundRect(x: rect.left, y: rect.top, width: rect.width, height: rect.height,
+                      radius: radius, color: color)
     }
 
     /// Draws an ellipse stroked inside the rect. If the angles differ, draws
@@ -146,6 +179,22 @@ extension Graphics {
             gfx.pointee.fillEllipse.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                               startAngle, endAngle, $0)
         }
+    }
+
+    /// Draws an ellipse stroked inside the rect. If the angles differ, draws
+    /// an arc from `startAngle` to `endAngle` (clockwise degrees, 0 at top).
+    public static func drawEllipse(in rect: Rect, lineWidth: Int,
+                                   startAngle: Float = 0, endAngle: Float = 0, color: Color) {
+        drawEllipse(x: rect.left, y: rect.top, width: rect.width, height: rect.height,
+                    lineWidth: lineWidth, startAngle: startAngle, endAngle: endAngle, color: color)
+    }
+
+    /// Fills an ellipse inside the rect. If the angles differ, fills the
+    /// wedge from `startAngle` to `endAngle` (clockwise degrees, 0 at top).
+    public static func fillEllipse(in rect: Rect,
+                                   startAngle: Float = 0, endAngle: Float = 0, color: Color) {
+        fillEllipse(x: rect.left, y: rect.top, width: rect.width, height: rect.height,
+                    startAngle: startAngle, endAngle: endAngle, color: color)
     }
 
     /// Fills the polygon described by the points, connecting the last point
@@ -203,6 +252,13 @@ extension Graphics {
                                                          Int32(x), Int32(y), Int32(width), Int32(height),
                                                          wrap.cValue, align.cValue)
         }
+    }
+
+    /// Draws `text` wrapped and aligned inside the given rectangle.
+    public static func drawText(_ text: String, in rect: Rect,
+                                wrap: TextWrappingMode = .word, align: TextAlignment = .left) {
+        drawText(text, x: rect.left, y: rect.top, width: rect.width, height: rect.height,
+                 wrap: wrap, align: align)
     }
 
     /// Sets the font used by subsequent text drawing.
