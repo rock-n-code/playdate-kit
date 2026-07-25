@@ -7,7 +7,7 @@
 
 internal import CPlaydate
 
-var snd: playdate_sound { Playdate.api.sound.pointee }
+var snd: UnsafePointer<playdate_sound> { Playdate.soundAPI }
 
 /// The sound API: channels, players, synths, sequences, and effects.
 public enum Sound {}
@@ -60,25 +60,25 @@ extension Sound {
 
     /// The most recent sound error as a thrown error.
     static func lastError() -> PlaydateError {
-        PlaydateError(cString: snd.getError.unsafelyUnwrapped())
+        PlaydateError(cString: snd.pointee.getError.unsafelyUnwrapped())
     }
 
     // MARK: - Top-level functions
 
     /// The audio engine's current time, in frames (44,100 per second).
     public static var currentTime: UInt32 {
-        snd.getCurrentTime.unsafelyUnwrapped()
+        snd.pointee.getCurrentTime.unsafelyUnwrapped()
     }
 
     /// The most recent audio error message, if any.
     public static var error: String? {
-        String(playdateCString: snd.getError.unsafelyUnwrapped())
+        String(playdateCString: snd.pointee.getError.unsafelyUnwrapped())
     }
 
     /// Removes a source from its channel.
     @discardableResult
     public static func removeSource(_ source: Source) -> Bool {
-        let removed = snd.removeSource.unsafelyUnwrapped(source.pointer) != 0
+        let removed = snd.pointee.removeSource.unsafelyUnwrapped(source.pointer) != 0
         CallbackSource.release(source)
         return removed
     }
@@ -91,12 +91,12 @@ extension Sound {
                                       _ callback: ((UnsafeMutableBufferPointer<Int16>) -> Bool)?) -> Bool {
         micCallback = callback
         if callback != nil {
-            return snd.setMicCallback.unsafelyUnwrapped({ _, buffer, length in
+            return snd.pointee.setMicCallback.unsafelyUnwrapped({ _, buffer, length in
                 let samples = UnsafeMutableBufferPointer(start: buffer, count: Int(length))
                 return Sound.micCallback?(samples) == true ? 1 : 0
             }, nil, CPlaydate.MicSource(source.rawValue)) != 0
         } else {
-            return snd.setMicCallback.unsafelyUnwrapped(nil, nil, CPlaydate.MicSource(source.rawValue)) != 0
+            return snd.pointee.setMicCallback.unsafelyUnwrapped(nil, nil, CPlaydate.MicSource(source.rawValue)) != 0
         }
     }
 
@@ -119,10 +119,10 @@ extension Sound {
         let reply: accessReply
         if let purpose {
             reply = purpose.withPlaydateCString {
-                snd.requestMicAccess.unsafelyUnwrapped($0, trampoline, box.toOpaque())
+                snd.pointee.requestMicAccess.unsafelyUnwrapped($0, trampoline, box.toOpaque())
             }
         } else {
-            reply = snd.requestMicAccess.unsafelyUnwrapped(nil, trampoline, box.toOpaque())
+            reply = snd.pointee.requestMicAccess.unsafelyUnwrapped(nil, trampoline, box.toOpaque())
         }
         if reply != kAccessAsk {
             // The callback will not be invoked; balance the retain.
@@ -134,7 +134,7 @@ extension Sound {
     /// The current headphone and headset-microphone state.
     public static var headphoneState: (headphone: Bool, headsetMic: Bool) {
         var headphone: Int32 = 0, headsetMic: Int32 = 0
-        snd.getHeadphoneState.unsafelyUnwrapped(&headphone, &headsetMic, nil)
+        snd.pointee.getHeadphoneState.unsafelyUnwrapped(&headphone, &headsetMic, nil)
         return (headphone != 0, headsetMic != 0)
     }
 
@@ -143,11 +143,11 @@ extension Sound {
     public static func setHeadphoneChangeCallback(_ callback: ((_ headphone: Bool, _ headsetMic: Bool) -> Void)?) {
         headphoneChangeCallback = callback
         if callback != nil {
-            snd.getHeadphoneState.unsafelyUnwrapped(nil, nil, { headphone, mic in
+            snd.pointee.getHeadphoneState.unsafelyUnwrapped(nil, nil, { headphone, mic in
                 Sound.headphoneChangeCallback?(headphone != 0, mic != 0)
             })
         } else {
-            snd.getHeadphoneState.unsafelyUnwrapped(nil, nil, nil)
+            snd.pointee.getHeadphoneState.unsafelyUnwrapped(nil, nil, nil)
         }
     }
 
@@ -157,7 +157,7 @@ extension Sound {
     /// headphone jack drives output and `speaker` is also set, the speaker
     /// plays too.
     public static func setOutputsActive(headphone: Bool, speaker: Bool) {
-        snd.setOutputsActive.unsafelyUnwrapped(headphone ? 1 : 0, speaker ? 1 : 0)
+        snd.pointee.setOutputsActive.unsafelyUnwrapped(headphone ? 1 : 0, speaker ? 1 : 0)
     }
 
     /// Adds a callback-based source to the default channel. The callback
@@ -166,7 +166,7 @@ extension Sound {
     public static func addSource(stereo: Bool,
                                  _ callback: @escaping CallbackSource.Callback) -> CallbackSource {
         let source = CallbackSource(callback: callback)
-        let pointer = snd.addSource.unsafelyUnwrapped(
+        let pointer = snd.pointee.addSource.unsafelyUnwrapped(
             CallbackSource.trampoline, source.contextPointer, stereo ? 1 : 0)
         source.adopt(pointer: pointer.unsafelyUnwrapped)
         return source
@@ -176,7 +176,7 @@ extension Sound {
 
     /// A mixer channel holding sources and effects. Wraps `SoundChannel`.
     public final class Channel {
-        private static var api: playdate_sound_channel { snd.channel.pointee }
+        private static var api: UnsafePointer<playdate_sound_channel> { snd.pointee.channel.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -191,13 +191,13 @@ extension Sound {
 
         /// Creates a new channel. Add it to the sound engine with `add()`.
         public convenience init() {
-            self.init(pointer: Channel.api.newChannel.unsafelyUnwrapped().unsafelyUnwrapped,
+            self.init(pointer: Channel.api.pointee.newChannel.unsafelyUnwrapped().unsafelyUnwrapped,
                       isOwned: true)
         }
 
         deinit {
             if isOwned {
-                Channel.api.freeChannel.unsafelyUnwrapped(pointer)
+                Channel.api.pointee.freeChannel.unsafelyUnwrapped(pointer)
                 // The freed channel no longer pulls its callback sources, so
                 // their trampoline registrations can be released too.
                 for source in retainedSources where source is CallbackSource {
@@ -209,7 +209,7 @@ extension Sound {
         /// The default channel, which sources are added to unless otherwise
         /// specified.
         public static var `default`: Channel {
-            Channel(pointer: snd.getDefaultChannel.unsafelyUnwrapped().unsafelyUnwrapped,
+            Channel(pointer: snd.pointee.getDefaultChannel.unsafelyUnwrapped().unsafelyUnwrapped,
                     isOwned: false)
         }
 
@@ -218,7 +218,7 @@ extension Sound {
         /// Adds the channel to the sound engine.
         @discardableResult
         public func add() -> Bool {
-            let added = snd.addChannel.unsafelyUnwrapped(pointer) != 0
+            let added = snd.pointee.addChannel.unsafelyUnwrapped(pointer) != 0
             if added, !Channel.addedChannels.contains(where: { $0 === self }) {
                 Channel.addedChannels.append(self)
             }
@@ -228,7 +228,7 @@ extension Sound {
         /// Removes the channel from the sound engine.
         @discardableResult
         public func remove() -> Bool {
-            let removed = snd.removeChannel.unsafelyUnwrapped(pointer) != 0
+            let removed = snd.pointee.removeChannel.unsafelyUnwrapped(pointer) != 0
             Channel.addedChannels.removeAll { $0 === self }
             return removed
         }
@@ -236,7 +236,7 @@ extension Sound {
         /// Adds a source to the channel. A source can only be on one channel.
         @discardableResult
         public func addSource(_ source: Source) -> Bool {
-            let added = Channel.api.addSource.unsafelyUnwrapped(pointer, source.pointer) != 0
+            let added = Channel.api.pointee.addSource.unsafelyUnwrapped(pointer, source.pointer) != 0
             if added, !retainedSources.contains(where: { $0 === source }) {
                 retainedSources.append(source)
             }
@@ -245,7 +245,7 @@ extension Sound {
 
         @discardableResult
         public func removeSource(_ source: Source) -> Bool {
-            let removed = Channel.api.removeSource.unsafelyUnwrapped(pointer, source.pointer) != 0
+            let removed = Channel.api.pointee.removeSource.unsafelyUnwrapped(pointer, source.pointer) != 0
             retainedSources.removeAll { $0 === source }
             CallbackSource.release(source)
             return removed
@@ -256,7 +256,7 @@ extension Sound {
         public func addCallbackSource(stereo: Bool,
                                       _ callback: @escaping CallbackSource.Callback) -> CallbackSource {
             let source = CallbackSource(callback: callback)
-            let pointer = Channel.api.addCallbackSource.unsafelyUnwrapped(
+            let pointer = Channel.api.pointee.addCallbackSource.unsafelyUnwrapped(
                 self.pointer, CallbackSource.trampoline, source.contextPointer, stereo ? 1 : 0)
             source.adopt(pointer: pointer.unsafelyUnwrapped)
             retainedSources.append(source)
@@ -265,7 +265,7 @@ extension Sound {
 
         @discardableResult
         public func addEffect(_ effect: Effect) -> Bool {
-            let added = Channel.api.addEffect.unsafelyUnwrapped(pointer, effect.pointer) != 0
+            let added = Channel.api.pointee.addEffect.unsafelyUnwrapped(pointer, effect.pointer) != 0
             if added, !retainedEffects.contains(where: { $0 === effect }) {
                 retainedEffects.append(effect)
             }
@@ -274,56 +274,56 @@ extension Sound {
 
         @discardableResult
         public func removeEffect(_ effect: Effect) -> Bool {
-            let removed = Channel.api.removeEffect.unsafelyUnwrapped(pointer, effect.pointer) != 0
+            let removed = Channel.api.pointee.removeEffect.unsafelyUnwrapped(pointer, effect.pointer) != 0
             retainedEffects.removeAll { $0 === effect }
             return removed
         }
 
         /// The channel's volume, 0...1.
         public var volume: Float {
-            get { Channel.api.getVolume.unsafelyUnwrapped(pointer) }
-            set { Channel.api.setVolume.unsafelyUnwrapped(pointer, newValue) }
+            get { Channel.api.pointee.getVolume.unsafelyUnwrapped(pointer) }
+            set { Channel.api.pointee.setVolume.unsafelyUnwrapped(pointer, newValue) }
         }
 
         /// Modulates the channel's volume.
         public func setVolumeModulator(_ modulator: SignalValue?) {
             retain(modulator)
-            Channel.api.setVolumeModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
+            Channel.api.pointee.setVolumeModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
         }
 
         public var volumeModulator: SignalValue? {
-            SignalValue.wrap(Channel.api.getVolumeModulator.unsafelyUnwrapped(pointer))
+            SignalValue.wrap(Channel.api.pointee.getVolumeModulator.unsafelyUnwrapped(pointer))
         }
 
         /// The channel's stereo pan: -1 (left) to 1 (right).
         public func setPan(_ pan: Float) {
-            Channel.api.setPan.unsafelyUnwrapped(pointer, pan)
+            Channel.api.pointee.setPan.unsafelyUnwrapped(pointer, pan)
         }
 
         /// Modulates the channel's pan. The signal's range 0...1 maps to
         /// left...right.
         public func setPanModulator(_ modulator: SignalValue?) {
             retain(modulator)
-            Channel.api.setPanModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
+            Channel.api.pointee.setPanModulator.unsafelyUnwrapped(pointer, modulator?.pointer)
         }
 
         public var panModulator: SignalValue? {
-            SignalValue.wrap(Channel.api.getPanModulator.unsafelyUnwrapped(pointer))
+            SignalValue.wrap(Channel.api.pointee.getPanModulator.unsafelyUnwrapped(pointer))
         }
 
         /// A signal following the channel's dry (unprocessed) level.
         public var dryLevelSignal: SignalValue? {
-            SignalValue.wrap(Channel.api.getDryLevelSignal.unsafelyUnwrapped(pointer))
+            SignalValue.wrap(Channel.api.pointee.getDryLevelSignal.unsafelyUnwrapped(pointer))
         }
 
         /// A signal following the channel's wet (processed) level.
         public var wetLevelSignal: SignalValue? {
-            SignalValue.wrap(Channel.api.getWetLevelSignal.unsafelyUnwrapped(pointer))
+            SignalValue.wrap(Channel.api.pointee.getWetLevelSignal.unsafelyUnwrapped(pointer))
         }
 
         /// The channel's output as a source, for feeding into another channel.
         public var outputAsSource: Source? {
-            guard let source = Channel.api.getOutputAsSource.unsafelyUnwrapped(pointer) else {
+            guard let source = Channel.api.pointee.getOutputAsSource.unsafelyUnwrapped(pointer) else {
                 return nil
             }
             return Source(pointer: source, isOwned: false)

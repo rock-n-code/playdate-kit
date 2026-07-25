@@ -9,7 +9,7 @@
 
 internal import CPlaydate
 
-private var scoreboardsAPI: playdate_scoreboards { Playdate.api.scoreboards.pointee }
+private var scoreboardsAPI: UnsafePointer<playdate_scoreboards> { Playdate.scoreboardsAPI }
 
 /// The scoreboards API for games with online leaderboards.
 public enum Scoreboards {}
@@ -102,7 +102,7 @@ extension Scoreboards {
                                 completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         addScoreCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
-            scoreboardsAPI.addScore.unsafelyUnwrapped(cBoardID, value, { score, errorMessage in
+            scoreboardsAPI.pointee.addScore.unsafelyUnwrapped(cBoardID, value, { score, errorMessage in
                 let completion = Scoreboards.addScoreCompletion
                 Scoreboards.addScoreCompletion = nil
                 completion?(Scoreboards.result(score, errorMessage))
@@ -116,7 +116,7 @@ extension Scoreboards {
                                        completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         personalBestCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
-            scoreboardsAPI.getPersonalBest.unsafelyUnwrapped(cBoardID, { score, errorMessage in
+            scoreboardsAPI.pointee.getPersonalBest.unsafelyUnwrapped(cBoardID, { score, errorMessage in
                 let completion = Scoreboards.personalBestCompletion
                 Scoreboards.personalBestCompletion = nil
                 completion?(Scoreboards.result(score, errorMessage))
@@ -128,7 +128,7 @@ extension Scoreboards {
     @discardableResult
     public static func getScoreboards(completion: @escaping (Result<BoardsList, PlaydateError>) -> Void) -> Bool {
         boardsCompletion = completion
-        return scoreboardsAPI.getScoreboards.unsafelyUnwrapped({ boards, errorMessage in
+        return scoreboardsAPI.pointee.getScoreboards.unsafelyUnwrapped({ boards, errorMessage in
             let completion = Scoreboards.boardsCompletion
             Scoreboards.boardsCompletion = nil
             guard let boards else {
@@ -136,7 +136,7 @@ extension Scoreboards {
                 return
             }
             let list = BoardsList(boards.pointee)
-            scoreboardsAPI.freeBoardsList.unsafelyUnwrapped(boards)
+            scoreboardsAPI.pointee.freeBoardsList.unsafelyUnwrapped(boards)
             completion?(.success(list))
         }) != 0
     }
@@ -147,7 +147,7 @@ extension Scoreboards {
                                  completion: @escaping (Result<ScoresList, PlaydateError>) -> Void) -> Bool {
         scoresCompletion = completion
         return boardID.withPlaydateCString { cBoardID in
-            scoreboardsAPI.getScores.unsafelyUnwrapped(cBoardID, { scores, errorMessage in
+            scoreboardsAPI.pointee.getScores.unsafelyUnwrapped(cBoardID, { scores, errorMessage in
                 let completion = Scoreboards.scoresCompletion
                 Scoreboards.scoresCompletion = nil
                 guard let scores else {
@@ -155,7 +155,7 @@ extension Scoreboards {
                     return
                 }
                 let list = ScoresList(scores.pointee)
-                scoreboardsAPI.freeScoresList.unsafelyUnwrapped(scores)
+                scoreboardsAPI.pointee.freeScoresList.unsafelyUnwrapped(scores)
                 completion?(.success(list))
             }) != 0
         }
@@ -167,7 +167,7 @@ extension Scoreboards {
             return .failure(PlaydateError(cString: errorMessage))
         }
         let value = Score(score.pointee)
-        scoreboardsAPI.freeScore.unsafelyUnwrapped(score)
+        scoreboardsAPI.pointee.freeScore.unsafelyUnwrapped(score)
         return .success(value)
     }
 }

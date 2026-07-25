@@ -8,7 +8,7 @@ internal import CPlaydate
 extension Sound {
     /// A synthesizer voice. Wraps `PDSynth`.
     public final class Synth: Source {
-        private static var api: playdate_sound_synth { snd.synth.pointee }
+        private static var api: UnsafePointer<playdate_sound_synth> { snd.pointee.synth.unsafelyUnwrapped }
 
         /// The synth's waveform.
         public enum Waveform: UInt32, Sendable {
@@ -72,7 +72,7 @@ extension Sound {
         }
 
         public convenience init() {
-            self.init(pointer: Synth.api.newSynth.unsafelyUnwrapped().unsafelyUnwrapped,
+            self.init(pointer: Synth.api.pointee.newSynth.unsafelyUnwrapped().unsafelyUnwrapped,
                       isOwned: true)
         }
 
@@ -83,27 +83,27 @@ extension Sound {
 
         deinit {
             if isOwned {
-                Synth.api.freeSynth.unsafelyUnwrapped(pointer)
+                Synth.api.pointee.freeSynth.unsafelyUnwrapped(pointer)
             }
         }
 
         /// Copies the synth (and its generator, if any).
         public func copy() -> Synth {
-            Synth(pointer: Synth.api.copy.unsafelyUnwrapped(pointer).unsafelyUnwrapped,
+            Synth(pointer: Synth.api.pointee.copy.unsafelyUnwrapped(pointer).unsafelyUnwrapped,
                   isOwned: true)
         }
 
         // MARK: Sound generation
 
         public func setWaveform(_ waveform: Waveform) {
-            Synth.api.setWaveform.unsafelyUnwrapped(pointer, waveform.cValue)
+            Synth.api.pointee.setWaveform.unsafelyUnwrapped(pointer, waveform.cValue)
         }
 
         /// Plays a sample instead of a waveform. A nonzero sustain range
         /// loops that part of the sample while the note is held.
         public func setSample(_ sample: AudioSample, sustainStart: UInt32 = 0, sustainEnd: UInt32 = 0) {
             retainedSample = sample
-            Synth.api.setSample.unsafelyUnwrapped(pointer, sample.pointer, sustainStart, sustainEnd)
+            Synth.api.pointee.setSample.unsafelyUnwrapped(pointer, sample.pointer, sustainStart, sustainEnd)
         }
 
         /// Uses a wavetable for the synth. `log2size` is the base-2 log of
@@ -111,7 +111,7 @@ extension Sound {
         public func setWavetable(_ sample: AudioSample, log2size: Int,
                                  columns: Int, rows: Int) throws(PlaydateError) {
             retainedSample = sample
-            guard Synth.api.setWavetable.unsafelyUnwrapped(
+            guard Synth.api.pointee.setWavetable.unsafelyUnwrapped(
                 pointer, sample.pointer, Int32(log2size), Int32(columns), Int32(rows)) != 0 else {
                 throw PlaydateError(message: "invalid wavetable dimensions")
             }
@@ -120,7 +120,7 @@ extension Sound {
         /// Provides audio via custom Swift callbacks.
         public func setGenerator(stereo: Bool, _ generator: Generator) {
             let box = Unmanaged.passRetained(GeneratorBox(generator, stereo: stereo))
-            Synth.api.setGenerator.unsafelyUnwrapped(
+            Synth.api.pointee.setGenerator.unsafelyUnwrapped(
                 pointer, stereo ? 1 : 0,
                 { userdata, left, right, nsamples, rate, drate in
                     guard let userdata, let left else { return 0 }
@@ -159,75 +159,75 @@ extension Sound {
         // MARK: Envelope
 
         public func setAttackTime(_ attack: Float) {
-            Synth.api.setAttackTime.unsafelyUnwrapped(pointer, attack)
+            Synth.api.pointee.setAttackTime.unsafelyUnwrapped(pointer, attack)
         }
 
         public func setDecayTime(_ decay: Float) {
-            Synth.api.setDecayTime.unsafelyUnwrapped(pointer, decay)
+            Synth.api.pointee.setDecayTime.unsafelyUnwrapped(pointer, decay)
         }
 
         public func setSustainLevel(_ sustain: Float) {
-            Synth.api.setSustainLevel.unsafelyUnwrapped(pointer, sustain)
+            Synth.api.pointee.setSustainLevel.unsafelyUnwrapped(pointer, sustain)
         }
 
         public func setReleaseTime(_ release: Float) {
-            Synth.api.setReleaseTime.unsafelyUnwrapped(pointer, release)
+            Synth.api.pointee.setReleaseTime.unsafelyUnwrapped(pointer, release)
         }
 
         /// The synth's amplitude envelope. Owned by the synth.
         public var envelope: Envelope? {
-            guard let envelope = Synth.api.getEnvelope.unsafelyUnwrapped(pointer) else { return nil }
+            guard let envelope = Synth.api.pointee.getEnvelope.unsafelyUnwrapped(pointer) else { return nil }
             return Envelope(pointer: envelope, isOwned: false)
         }
 
         /// Clears the synth's envelope so it plays at constant volume.
         public func clearEnvelope() {
-            Synth.api.clearEnvelope.unsafelyUnwrapped(pointer)
+            Synth.api.pointee.clearEnvelope.unsafelyUnwrapped(pointer)
         }
 
         // MARK: Modulation
 
         /// Transposes played notes by `halfSteps` (fractional values allowed).
         public func setTranspose(_ halfSteps: Float) {
-            Synth.api.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
+            Synth.api.pointee.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
         }
 
         public var frequencyModulator: SignalValue? {
-            get { SignalValue.wrap(Synth.api.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(Synth.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                Synth.api.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                Synth.api.pointee.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         public var amplitudeModulator: SignalValue? {
-            get { SignalValue.wrap(Synth.api.getAmplitudeModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(Synth.api.pointee.getAmplitudeModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                Synth.api.setAmplitudeModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                Synth.api.pointee.setAmplitudeModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// The number of parameters the synth's generator supports.
         public var parameterCount: Int {
-            Int(Synth.api.getParameterCount.unsafelyUnwrapped(pointer))
+            Int(Synth.api.pointee.getParameterCount.unsafelyUnwrapped(pointer))
         }
 
         /// Sets a generator parameter. Returns `false` if the parameter is
         /// invalid.
         @discardableResult
         public func setParameter(_ parameter: Int, value: Float) -> Bool {
-            Synth.api.setParameter.unsafelyUnwrapped(pointer, Int32(parameter), value) != 0
+            Synth.api.pointee.setParameter.unsafelyUnwrapped(pointer, Int32(parameter), value) != 0
         }
 
         public func setParameterModulator(_ parameter: Int, _ modulator: SignalValue?) {
             retain(modulator)
-            Synth.api.setParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter),
+            Synth.api.pointee.setParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter),
                                                               modulator?.pointer)
         }
 
         public func parameterModulator(_ parameter: Int) -> SignalValue? {
-            SignalValue.wrap(Synth.api.getParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter)))
+            SignalValue.wrap(Synth.api.pointee.getParameterModulator.unsafelyUnwrapped(pointer, Int32(parameter)))
         }
 
         private func retain(_ modulator: SignalValue?) {
@@ -243,23 +243,23 @@ extension Sound {
         /// or 0 for immediately.
         public func playNote(frequency: Float, velocity: Float = 1,
                              length: Float? = nil, when: UInt32 = 0) {
-            Synth.api.playNote.unsafelyUnwrapped(pointer, frequency, velocity, length ?? -1, when)
+            Synth.api.pointee.playNote.unsafelyUnwrapped(pointer, frequency, velocity, length ?? -1, when)
         }
 
         /// Plays a MIDI note, where 60 is middle C.
         public func playMIDINote(_ note: MIDINote, velocity: Float = 1,
                                  length: Float? = nil, when: UInt32 = 0) {
-            Synth.api.playMIDINote.unsafelyUnwrapped(pointer, note, velocity, length ?? -1, when)
+            Synth.api.pointee.playMIDINote.unsafelyUnwrapped(pointer, note, velocity, length ?? -1, when)
         }
 
         /// Releases the playing note at time `when`, or immediately if 0.
         public func noteOff(when: UInt32 = 0) {
-            Synth.api.noteOff.unsafelyUnwrapped(pointer, when)
+            Synth.api.pointee.noteOff.unsafelyUnwrapped(pointer, when)
         }
 
         /// Stops the synth immediately, without playing the release phase.
         public func stop() {
-            Synth.api.stop.unsafelyUnwrapped(pointer)
+            Synth.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
     }
 
@@ -268,7 +268,7 @@ extension Sound {
     /// A bank of synth voices for playing a sequence track. Wraps
     /// `PDSynthInstrument`.
     public final class Instrument {
-        private static var api: playdate_sound_instrument { snd.instrument.pointee }
+        private static var api: UnsafePointer<playdate_sound_instrument> { snd.pointee.instrument.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -280,13 +280,13 @@ extension Sound {
         }
 
         public convenience init() {
-            self.init(pointer: Instrument.api.newInstrument.unsafelyUnwrapped().unsafelyUnwrapped,
+            self.init(pointer: Instrument.api.pointee.newInstrument.unsafelyUnwrapped().unsafelyUnwrapped,
                       isOwned: true)
         }
 
         deinit {
             if isOwned {
-                Instrument.api.freeInstrument.unsafelyUnwrapped(pointer)
+                Instrument.api.pointee.freeInstrument.unsafelyUnwrapped(pointer)
             }
         }
 
@@ -296,7 +296,7 @@ extension Sound {
         @discardableResult
         public func addVoice(_ synth: Synth, rangeStart: MIDINote = 0, rangeEnd: MIDINote = 127,
                              transpose: Float = 0) -> Bool {
-            let added = Instrument.api.addVoice.unsafelyUnwrapped(
+            let added = Instrument.api.pointee.addVoice.unsafelyUnwrapped(
                 pointer, synth.pointer, rangeStart, rangeEnd, transpose) != 0
             if added, !retainedVoices.contains(where: { $0 === synth }) {
                 retainedVoices.append(synth)
@@ -309,7 +309,7 @@ extension Sound {
         @discardableResult
         public func playNote(frequency: Float, velocity: Float = 1,
                              length: Float? = nil, when: UInt32 = 0) -> Synth? {
-            let synth = Instrument.api.playNote.unsafelyUnwrapped(
+            let synth = Instrument.api.pointee.playNote.unsafelyUnwrapped(
                 pointer, frequency, velocity, length ?? -1, when)
             return voice(for: synth)
         }
@@ -318,7 +318,7 @@ extension Sound {
         @discardableResult
         public func playMIDINote(_ note: MIDINote, velocity: Float = 1,
                                  length: Float? = nil, when: UInt32 = 0) -> Synth? {
-            let synth = Instrument.api.playMIDINote.unsafelyUnwrapped(
+            let synth = Instrument.api.pointee.playMIDINote.unsafelyUnwrapped(
                 pointer, note, velocity, length ?? -1, when)
             return voice(for: synth)
         }
@@ -333,38 +333,38 @@ extension Sound {
 
         /// Bends played notes by `bend` × the pitch bend range.
         public func setPitchBend(_ bend: Float) {
-            Instrument.api.setPitchBend.unsafelyUnwrapped(pointer, bend)
+            Instrument.api.pointee.setPitchBend.unsafelyUnwrapped(pointer, bend)
         }
 
         public func setPitchBendRange(halfSteps: Float) {
-            Instrument.api.setPitchBendRange.unsafelyUnwrapped(pointer, halfSteps)
+            Instrument.api.pointee.setPitchBendRange.unsafelyUnwrapped(pointer, halfSteps)
         }
 
         public func setTranspose(halfSteps: Float) {
-            Instrument.api.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
+            Instrument.api.pointee.setTranspose.unsafelyUnwrapped(pointer, halfSteps)
         }
 
         /// Releases the voice playing `note` at time `when` (0 = now).
         public func noteOff(_ note: MIDINote, when: UInt32 = 0) {
-            Instrument.api.noteOff.unsafelyUnwrapped(pointer, note, when)
+            Instrument.api.pointee.noteOff.unsafelyUnwrapped(pointer, note, when)
         }
 
         public func allNotesOff(when: UInt32 = 0) {
-            Instrument.api.allNotesOff.unsafelyUnwrapped(pointer, when)
+            Instrument.api.pointee.allNotesOff.unsafelyUnwrapped(pointer, when)
         }
 
         public func setVolume(left: Float, right: Float) {
-            Instrument.api.setVolume.unsafelyUnwrapped(pointer, left, right)
+            Instrument.api.pointee.setVolume.unsafelyUnwrapped(pointer, left, right)
         }
 
         public var volume: (left: Float, right: Float) {
             var left: Float = 0, right: Float = 0
-            Instrument.api.getVolume.unsafelyUnwrapped(pointer, &left, &right)
+            Instrument.api.pointee.getVolume.unsafelyUnwrapped(pointer, &left, &right)
             return (left, right)
         }
 
         public var activeVoiceCount: Int {
-            Int(Instrument.api.activeVoiceCount.unsafelyUnwrapped(pointer))
+            Int(Instrument.api.pointee.activeVoiceCount.unsafelyUnwrapped(pointer))
         }
     }
 
@@ -372,7 +372,7 @@ extension Sound {
 
     /// A track of notes played by an instrument. Wraps `SequenceTrack`.
     public final class SequenceTrack {
-        private static var api: playdate_sound_track { snd.track.pointee }
+        private static var api: UnsafePointer<playdate_sound_track> { snd.pointee.track.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -384,13 +384,13 @@ extension Sound {
         }
 
         public convenience init() {
-            self.init(pointer: SequenceTrack.api.newTrack.unsafelyUnwrapped().unsafelyUnwrapped,
+            self.init(pointer: SequenceTrack.api.pointee.newTrack.unsafelyUnwrapped().unsafelyUnwrapped,
                       isOwned: true)
         }
 
         deinit {
             if isOwned {
-                SequenceTrack.api.freeTrack.unsafelyUnwrapped(pointer)
+                SequenceTrack.api.pointee.freeTrack.unsafelyUnwrapped(pointer)
             }
         }
 
@@ -398,38 +398,38 @@ extension Sound {
         public var instrument: Instrument? {
             get {
                 if let retainedInstrument { return retainedInstrument }
-                guard let instrument = SequenceTrack.api.getInstrument.unsafelyUnwrapped(pointer) else {
+                guard let instrument = SequenceTrack.api.pointee.getInstrument.unsafelyUnwrapped(pointer) else {
                     return nil
                 }
                 return Instrument(pointer: instrument, isOwned: false)
             }
             set {
                 retainedInstrument = newValue
-                SequenceTrack.api.setInstrument.unsafelyUnwrapped(pointer, newValue?.pointer)
+                SequenceTrack.api.pointee.setInstrument.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// Adds a note starting at `step`, lasting `length` steps.
         public func addNote(step: UInt32, length: UInt32, note: MIDINote, velocity: Float = 1) {
-            SequenceTrack.api.addNoteEvent.unsafelyUnwrapped(pointer, step, length, note, velocity)
+            SequenceTrack.api.pointee.addNoteEvent.unsafelyUnwrapped(pointer, step, length, note, velocity)
         }
 
         public func removeNote(step: UInt32, note: MIDINote) {
-            SequenceTrack.api.removeNoteEvent.unsafelyUnwrapped(pointer, step, note)
+            SequenceTrack.api.pointee.removeNoteEvent.unsafelyUnwrapped(pointer, step, note)
         }
 
         public func clearNotes() {
-            SequenceTrack.api.clearNotes.unsafelyUnwrapped(pointer)
+            SequenceTrack.api.pointee.clearNotes.unsafelyUnwrapped(pointer)
         }
 
         /// The track's length in steps, including the tail of the last note.
         public var length: UInt32 {
-            SequenceTrack.api.getLength.unsafelyUnwrapped(pointer)
+            SequenceTrack.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
         /// The index of the first note at or after `step`.
         public func indexForStep(_ step: UInt32) -> Int {
-            Int(SequenceTrack.api.getIndexForStep.unsafelyUnwrapped(pointer, step))
+            Int(SequenceTrack.api.pointee.getIndexForStep.unsafelyUnwrapped(pointer, step))
         }
 
         /// The note at `index`, or `nil` if the index is out of range.
@@ -438,19 +438,19 @@ extension Sound {
             var step: UInt32 = 0, length: UInt32 = 0
             var note: MIDINote = 0
             var velocity: Float = 0
-            guard SequenceTrack.api.getNoteAtIndex.unsafelyUnwrapped(
+            guard SequenceTrack.api.pointee.getNoteAtIndex.unsafelyUnwrapped(
                 pointer, Int32(index), &step, &length, &note, &velocity) != 0 else { return nil }
             return (step, length, note, velocity)
         }
 
         /// The number of control signals on the track.
         public var controlSignalCount: Int {
-            Int(SequenceTrack.api.getControlSignalCount.unsafelyUnwrapped(pointer))
+            Int(SequenceTrack.api.pointee.getControlSignalCount.unsafelyUnwrapped(pointer))
         }
 
         /// The control signal at `index`. Owned by the track.
         public func controlSignal(at index: Int) -> ControlSignal? {
-            guard let signal = SequenceTrack.api.getControlSignal.unsafelyUnwrapped(
+            guard let signal = SequenceTrack.api.pointee.getControlSignal.unsafelyUnwrapped(
                 pointer, Int32(index)) else { return nil }
             return ControlSignal(pointer: signal, isOwned: false)
         }
@@ -458,26 +458,26 @@ extension Sound {
         /// The control signal for MIDI controller `controller`, optionally
         /// creating it. Owned by the track.
         public func signalForController(_ controller: Int, create: Bool = false) -> ControlSignal? {
-            guard let signal = SequenceTrack.api.getSignalForController.unsafelyUnwrapped(
+            guard let signal = SequenceTrack.api.pointee.getSignalForController.unsafelyUnwrapped(
                 pointer, Int32(controller), create ? 1 : 0) else { return nil }
             return ControlSignal(pointer: signal, isOwned: false)
         }
 
         public func clearControlEvents() {
-            SequenceTrack.api.clearControlEvents.unsafelyUnwrapped(pointer)
+            SequenceTrack.api.pointee.clearControlEvents.unsafelyUnwrapped(pointer)
         }
 
         /// The maximum number of simultaneous notes in the track.
         public var polyphony: Int {
-            Int(SequenceTrack.api.getPolyphony.unsafelyUnwrapped(pointer))
+            Int(SequenceTrack.api.pointee.getPolyphony.unsafelyUnwrapped(pointer))
         }
 
         public var activeVoiceCount: Int {
-            Int(SequenceTrack.api.activeVoiceCount.unsafelyUnwrapped(pointer))
+            Int(SequenceTrack.api.pointee.activeVoiceCount.unsafelyUnwrapped(pointer))
         }
 
         public func setMuted(_ muted: Bool) {
-            SequenceTrack.api.setMuted.unsafelyUnwrapped(pointer, muted ? 1 : 0)
+            SequenceTrack.api.pointee.setMuted.unsafelyUnwrapped(pointer, muted ? 1 : 0)
         }
     }
 
@@ -486,14 +486,14 @@ extension Sound {
     /// A collection of tracks with tempo and loop control, playable from a
     /// MIDI file. Wraps `SoundSequence`.
     public final class Sequence {
-        private static var api: playdate_sound_sequence { snd.sequence.pointee }
+        private static var api: UnsafePointer<playdate_sound_sequence> { snd.pointee.sequence.unsafelyUnwrapped }
 
         let pointer: OpaquePointer
         private var retainedTracks: [SequenceTrack] = []
         var finishCallback: ((Sequence) -> Void)?
 
         public init() {
-            pointer = Sequence.api.newSequence.unsafelyUnwrapped().unsafelyUnwrapped
+            pointer = Sequence.api.pointee.newSequence.unsafelyUnwrapped().unsafelyUnwrapped
         }
 
         /// Creates a sequence and loads the MIDI file at `path`.
@@ -503,12 +503,12 @@ extension Sound {
         }
 
         deinit {
-            Sequence.api.freeSequence.unsafelyUnwrapped(pointer)
+            Sequence.api.pointee.freeSequence.unsafelyUnwrapped(pointer)
         }
 
         public func loadMIDIFile(path: String) throws(PlaydateError) {
             let loaded = path.withPlaydateCString {
-                Sequence.api.loadMIDIFile.unsafelyUnwrapped(pointer, $0) != 0
+                Sequence.api.pointee.loadMIDIFile.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
                 throw PlaydateError(message: "unable to load MIDI file: \(path)")
@@ -519,65 +519,65 @@ extension Sound {
         public func play(completion: ((Sequence) -> Void)? = nil) {
             finishCallback = completion
             if completion != nil {
-                Sequence.api.play.unsafelyUnwrapped(pointer, { _, userdata in
+                Sequence.api.pointee.play.unsafelyUnwrapped(pointer, { _, userdata in
                     guard let userdata else { return }
                     let sequence = Unmanaged<Sequence>.fromOpaque(userdata).takeUnretainedValue()
                     sequence.finishCallback?(sequence)
                 }, Unmanaged.passUnretained(self).toOpaque())
             } else {
-                Sequence.api.play.unsafelyUnwrapped(pointer, nil, nil)
+                Sequence.api.pointee.play.unsafelyUnwrapped(pointer, nil, nil)
             }
         }
 
         public func stop() {
-            Sequence.api.stop.unsafelyUnwrapped(pointer)
+            Sequence.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
         public var isPlaying: Bool {
-            Sequence.api.isPlaying.unsafelyUnwrapped(pointer) != 0
+            Sequence.api.pointee.isPlaying.unsafelyUnwrapped(pointer) != 0
         }
 
         /// The playback position, in samples.
         public var time: UInt32 {
-            get { Sequence.api.getTime.unsafelyUnwrapped(pointer) }
-            set { Sequence.api.setTime.unsafelyUnwrapped(pointer, newValue) }
+            get { Sequence.api.pointee.getTime.unsafelyUnwrapped(pointer) }
+            set { Sequence.api.pointee.setTime.unsafelyUnwrapped(pointer, newValue) }
         }
 
         /// The tempo, in steps per second.
         public var tempo: Float {
-            get { Sequence.api.getTempo.unsafelyUnwrapped(pointer) }
-            set { Sequence.api.setTempo.unsafelyUnwrapped(pointer, newValue) }
+            get { Sequence.api.pointee.getTempo.unsafelyUnwrapped(pointer) }
+            set { Sequence.api.pointee.setTempo.unsafelyUnwrapped(pointer, newValue) }
         }
 
         /// The sequence's length in steps, including the tail of the last note.
         public var length: UInt32 {
-            Sequence.api.getLength.unsafelyUnwrapped(pointer)
+            Sequence.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
         /// Loops the range `loopStart..<loopEnd` (steps) `loops` times while
         /// playing; 0 loops endlessly.
         public func setLoops(start: Int, end: Int, count: Int = 0) {
-            Sequence.api.setLoops.unsafelyUnwrapped(pointer, Int32(start), Int32(end), Int32(count))
+            Sequence.api.pointee.setLoops.unsafelyUnwrapped(pointer, Int32(start), Int32(end), Int32(count))
         }
 
         /// The current step, and the time offset (in samples) into that step.
         public var currentStep: (step: Int, timeOffset: Int) {
             var timeOffset: Int32 = 0
-            let step = Sequence.api.getCurrentStep.unsafelyUnwrapped(pointer, &timeOffset)
+            let step = Sequence.api.pointee.getCurrentStep.unsafelyUnwrapped(pointer, &timeOffset)
             return (Int(step), Int(timeOffset))
         }
 
         /// Moves playback to the given step. If `playNotes` is `true`, notes
         /// at the position (that started before it) are played.
         public func setCurrentStep(_ step: Int, timeOffset: Int = 0, playNotes: Bool = false) {
-            Sequence.api.setCurrentStep.unsafelyUnwrapped(pointer, Int32(step),
+            Sequence.api.pointee.setCurrentStep.unsafelyUnwrapped(pointer, Int32(step),
                                                           Int32(timeOffset), playNotes ? 1 : 0)
         }
 
         // MARK: Tracks
 
         public var trackCount: Int {
-            Int(Sequence.api.getTrackCount.unsafelyUnwrapped(pointer))
+            Int(Sequence.api.pointee.getTrackCount.unsafelyUnwrapped(pointer))
         }
 
         /// Adds a new track to the sequence. The track is owned by the
@@ -585,7 +585,7 @@ extension Sound {
         @discardableResult
         public func addTrack() -> SequenceTrack {
             let track = SequenceTrack(
-                pointer: Sequence.api.addTrack.unsafelyUnwrapped(pointer).unsafelyUnwrapped,
+                pointer: Sequence.api.pointee.addTrack.unsafelyUnwrapped(pointer).unsafelyUnwrapped,
                 isOwned: false)
             retainedTracks.append(track)
             return track
@@ -593,7 +593,7 @@ extension Sound {
 
         /// The track at `index`. Owned by the sequence.
         public func track(at index: Int) -> SequenceTrack? {
-            guard let track = Sequence.api.getTrackAtIndex.unsafelyUnwrapped(
+            guard let track = Sequence.api.pointee.getTrackAtIndex.unsafelyUnwrapped(
                 pointer, UInt32(index)) else { return nil }
             return SequenceTrack(pointer: track, isOwned: false)
         }
@@ -603,12 +603,12 @@ extension Sound {
             if !retainedTracks.contains(where: { $0 === track }) {
                 retainedTracks.append(track)
             }
-            Sequence.api.setTrackAtIndex.unsafelyUnwrapped(pointer, track.pointer, UInt32(index))
+            Sequence.api.pointee.setTrackAtIndex.unsafelyUnwrapped(pointer, track.pointer, UInt32(index))
         }
 
         /// Releases every playing note in the sequence.
         public func allNotesOff() {
-            Sequence.api.allNotesOff.unsafelyUnwrapped(pointer)
+            Sequence.api.pointee.allNotesOff.unsafelyUnwrapped(pointer)
         }
     }
 }

@@ -9,7 +9,7 @@ internal import CPlaydate
 public enum System {}
 
 extension System {
-    private static var api: playdate_sys { Playdate.api.system.pointee }
+    private static var api: UnsafePointer<playdate_sys> { Playdate.systemAPI }
 
     // MARK: - Types
 
@@ -114,13 +114,13 @@ extension System {
     /// The system allocator. Pass `nil` to allocate, `size` 0 to free.
     @discardableResult
     public static func realloc(_ pointer: UnsafeMutableRawPointer?, size: Int) -> UnsafeMutableRawPointer? {
-        api.realloc.unsafelyUnwrapped(pointer, size)
+        api.pointee.realloc.unsafelyUnwrapped(pointer, size)
     }
 
     /// Frees memory that the Playdate OS handed to the caller (e.g. strings
     /// returned by `localizedText(forKey:)`).
     static func systemFree(_ pointer: UnsafeMutableRawPointer?) {
-        _ = api.realloc.unsafelyUnwrapped(pointer, 0)
+        _ = api.pointee.realloc.unsafelyUnwrapped(pointer, 0)
     }
 
     // MARK: - Logging
@@ -137,48 +137,48 @@ extension System {
 
     // MARK: - Time
 
-    public static var language: Language { Language(api.getLanguage.unsafelyUnwrapped()) }
+    public static var language: Language { Language(api.pointee.getLanguage.unsafelyUnwrapped()) }
 
     /// Milliseconds since the game launched. Wraps around after about 49 days.
     public static var currentTimeMilliseconds: UInt32 {
-        UInt32(api.getCurrentTimeMilliseconds.unsafelyUnwrapped())
+        UInt32(api.pointee.getCurrentTimeMilliseconds.unsafelyUnwrapped())
     }
 
     /// Seconds (and sub-second milliseconds) since midnight 2000-01-01 UTC.
     public static var secondsSinceEpoch: (seconds: UInt32, milliseconds: UInt32) {
         var milliseconds: UInt32 = 0
         let seconds = withUnsafeMutablePointer(to: &milliseconds) {
-            api.getSecondsSinceEpoch.unsafelyUnwrapped($0)
+            api.pointee.getSecondsSinceEpoch.unsafelyUnwrapped($0)
         }
         return (UInt32(seconds), milliseconds)
     }
 
     /// High-resolution timer value, in seconds.
-    public static var elapsedTime: Float { api.getElapsedTime.unsafelyUnwrapped() }
+    public static var elapsedTime: Float { api.pointee.getElapsedTime.unsafelyUnwrapped() }
 
-    public static func resetElapsedTime() { api.resetElapsedTime.unsafelyUnwrapped() }
+    public static func resetElapsedTime() { api.pointee.resetElapsedTime.unsafelyUnwrapped() }
 
     /// Offset from UTC of the user-set timezone, in seconds.
-    public static var timezoneOffset: Int32 { api.getTimezoneOffset.unsafelyUnwrapped() }
+    public static var timezoneOffset: Int32 { api.pointee.getTimezoneOffset.unsafelyUnwrapped() }
 
     public static var shouldDisplay24HourTime: Bool {
-        api.shouldDisplay24HourTime.unsafelyUnwrapped() != 0
+        api.pointee.shouldDisplay24HourTime.unsafelyUnwrapped() != 0
     }
 
     public static func convertEpochToDateTime(_ epoch: UInt32) -> DateTime {
         var dateTime = PDDateTime()
-        api.convertEpochToDateTime.unsafelyUnwrapped(epoch, &dateTime)
+        api.pointee.convertEpochToDateTime.unsafelyUnwrapped(epoch, &dateTime)
         return DateTime(dateTime)
     }
 
     public static func convertDateTimeToEpoch(_ dateTime: DateTime) -> UInt32 {
         var cValue = dateTime.cValue
-        return api.convertDateTimeToEpoch.unsafelyUnwrapped(&cValue)
+        return api.pointee.convertDateTimeToEpoch.unsafelyUnwrapped(&cValue)
     }
 
     /// Blocks execution for the given number of milliseconds.
     public static func delay(milliseconds: UInt32) {
-        api.delay.unsafelyUnwrapped(milliseconds)
+        api.pointee.delay.unsafelyUnwrapped(milliseconds)
     }
 
     /// Requests the server time. The completion receives the time string or
@@ -186,7 +186,7 @@ extension System {
     /// before the first completes replaces the stored completion.
     public static func getServerTime(_ completion: @escaping (_ time: String?, _ error: String?) -> Void) {
         serverTimeCompletion = completion
-        api.getServerTime.unsafelyUnwrapped { time, error in
+        api.pointee.getServerTime.unsafelyUnwrapped { time, error in
             let completion = System.serverTimeCompletion
             System.serverTimeCompletion = nil
             completion?(String(playdateCString: time), String(playdateCString: error))
@@ -200,7 +200,7 @@ extension System {
     /// Sets the per-frame update callback. Return `true` to redraw the display.
     public static func setUpdateCallback(_ callback: @escaping () -> Bool) {
         updateCallback = callback
-        api.setUpdateCallback.unsafelyUnwrapped({ _ in
+        api.pointee.setUpdateCallback.unsafelyUnwrapped({ _ in
             System.updateCallback?() == true ? 1 : 0
         }, nil)
     }
@@ -209,7 +209,7 @@ extension System {
 
     /// Draws the current frames-per-second value at the given point.
     public static func drawFPS(x: Int = 0, y: Int = 0) {
-        api.drawFPS.unsafelyUnwrapped(Int32(x), Int32(y))
+        api.pointee.drawFPS.unsafelyUnwrapped(Int32(x), Int32(y))
     }
 
     // MARK: - Input
@@ -217,7 +217,7 @@ extension System {
     /// The current button state: held, pressed this frame, released this frame.
     public static var buttonState: (current: Buttons, pushed: Buttons, released: Buttons) {
         var current = PDButtons(0), pushed = PDButtons(0), released = PDButtons(0)
-        api.getButtonState.unsafelyUnwrapped(&current, &pushed, &released)
+        api.pointee.getButtonState.unsafelyUnwrapped(&current, &pushed, &released)
         return (Buttons(current), Buttons(pushed), Buttons(released))
     }
 
@@ -228,47 +228,47 @@ extension System {
                                          _ callback: ((_ button: Buttons, _ isDown: Bool, _ when: UInt32) -> Int32)?) {
         buttonCallback = callback
         if callback != nil {
-            api.setButtonCallback.unsafelyUnwrapped({ button, down, when, _ in
+            api.pointee.setButtonCallback.unsafelyUnwrapped({ button, down, when, _ in
                 System.buttonCallback?(Buttons(button), down != 0, when) ?? 0
             }, nil, Int32(queueSize))
         } else {
-            api.setButtonCallback.unsafelyUnwrapped(nil, nil, Int32(queueSize))
+            api.pointee.setButtonCallback.unsafelyUnwrapped(nil, nil, Int32(queueSize))
         }
     }
 
     nonisolated(unsafe) private static var buttonCallback: ((Buttons, Bool, UInt32) -> Int32)?
 
     public static func setPeripheralsEnabled(_ peripherals: Peripherals) {
-        api.setPeripheralsEnabled.unsafelyUnwrapped(PDPeripherals(peripherals.rawValue))
+        api.pointee.setPeripheralsEnabled.unsafelyUnwrapped(PDPeripherals(peripherals.rawValue))
     }
 
     /// The most recent accelerometer reading, in g. Enable the accelerometer
     /// with `setPeripheralsEnabled(.accelerometer)` first.
     public static var accelerometer: (x: Float, y: Float, z: Float) {
         var x: Float = 0, y: Float = 0, z: Float = 0
-        api.getAccelerometer.unsafelyUnwrapped(&x, &y, &z)
+        api.pointee.getAccelerometer.unsafelyUnwrapped(&x, &y, &z)
         return (x, y, z)
     }
 
     /// Degrees the crank moved since the last frame.
-    public static var crankChange: Float { api.getCrankChange.unsafelyUnwrapped() }
+    public static var crankChange: Float { api.pointee.getCrankChange.unsafelyUnwrapped() }
 
     /// The crank position in degrees; 0 points along the +Y axis.
-    public static var crankAngle: Float { api.getCrankAngle.unsafelyUnwrapped() }
+    public static var crankAngle: Float { api.pointee.getCrankAngle.unsafelyUnwrapped() }
 
-    public static var isCrankDocked: Bool { api.isCrankDocked.unsafelyUnwrapped() != 0 }
+    public static var isCrankDocked: Bool { api.pointee.isCrankDocked.unsafelyUnwrapped() != 0 }
 
     /// Disables or enables the crank dock/undock sounds. Returns the previous setting.
     @discardableResult
     public static func setCrankSoundsDisabled(_ disabled: Bool) -> Bool {
-        api.setCrankSoundsDisabled.unsafelyUnwrapped(disabled ? 1 : 0) != 0
+        api.pointee.setCrankSoundsDisabled.unsafelyUnwrapped(disabled ? 1 : 0) != 0
     }
 
     /// Whether the user has the "flipped" system setting enabled.
-    public static var isFlipped: Bool { api.getFlipped.unsafelyUnwrapped() != 0 }
+    public static var isFlipped: Bool { api.pointee.getFlipped.unsafelyUnwrapped() != 0 }
 
     public static func setAutoLockDisabled(_ disabled: Bool) {
-        api.setAutoLockDisabled.unsafelyUnwrapped(disabled ? 1 : 0)
+        api.pointee.setAutoLockDisabled.unsafelyUnwrapped(disabled ? 1 : 0)
     }
 
     /// Installs a callback invoked when a message is received on the serial port
@@ -276,12 +276,12 @@ extension System {
     public static func setSerialMessageCallback(_ callback: ((String) -> Void)?) {
         serialMessageCallback = callback
         if callback != nil {
-            api.setSerialMessageCallback.unsafelyUnwrapped { data in
+            api.pointee.setSerialMessageCallback.unsafelyUnwrapped { data in
                 guard let message = String(playdateCString: data) else { return }
                 System.serialMessageCallback?(message)
             }
         } else {
-            api.setSerialMessageCallback.unsafelyUnwrapped(nil)
+            api.pointee.setSerialMessageCallback.unsafelyUnwrapped(nil)
         }
     }
 
@@ -311,11 +311,11 @@ extension System {
         /// The menu item's title.
         public var title: String {
             get {
-                String(playdateCString: Playdate.api.system.pointee.getMenuItemTitle.unsafelyUnwrapped(pointer)) ?? ""
+                String(playdateCString: Playdate.systemAPI.pointee.getMenuItemTitle.unsafelyUnwrapped(pointer)) ?? ""
             }
             set {
                 newValue.withPlaydateCString {
-                    Playdate.api.system.pointee.setMenuItemTitle.unsafelyUnwrapped(pointer, $0)
+                    Playdate.systemAPI.pointee.setMenuItemTitle.unsafelyUnwrapped(pointer, $0)
                 }
             }
         }
@@ -323,8 +323,8 @@ extension System {
         /// For checkmark items this is 0 or 1; for option items it is the
         /// index of the selected option.
         public var value: Int {
-            get { Int(Playdate.api.system.pointee.getMenuItemValue.unsafelyUnwrapped(pointer)) }
-            set { Playdate.api.system.pointee.setMenuItemValue.unsafelyUnwrapped(pointer, Int32(newValue)) }
+            get { Int(Playdate.systemAPI.pointee.getMenuItemValue.unsafelyUnwrapped(pointer)) }
+            set { Playdate.systemAPI.pointee.setMenuItemValue.unsafelyUnwrapped(pointer, Int32(newValue)) }
         }
 
         /// Convenience view of `value` for checkmark items.
@@ -352,7 +352,7 @@ extension System {
     public static func addMenuItem(title: String, onSelect: @escaping (MenuItem) -> Void) -> MenuItem? {
         var item: MenuItem?
         title.withPlaydateCString { cTitle in
-            let pointer = api.addMenuItem.unsafelyUnwrapped(cTitle, menuItemTrampoline, nil)
+            let pointer = api.pointee.addMenuItem.unsafelyUnwrapped(cTitle, menuItemTrampoline, nil)
             item = MenuItem(pointer: pointer, onSelect: onSelect)
         }
         return registered(item)
@@ -364,7 +364,7 @@ extension System {
                                             onSelect: @escaping (MenuItem) -> Void) -> MenuItem? {
         var item: MenuItem?
         title.withPlaydateCString { cTitle in
-            let pointer = api.addCheckmarkMenuItem.unsafelyUnwrapped(
+            let pointer = api.pointee.addCheckmarkMenuItem.unsafelyUnwrapped(
                 cTitle, isChecked ? 1 : 0, menuItemTrampoline, nil)
             item = MenuItem(pointer: pointer, onSelect: onSelect)
         }
@@ -382,7 +382,7 @@ extension System {
         var item: MenuItem?
         title.withPlaydateCString { cTitle in
             cOptions.withUnsafeMutableBufferPointer { buffer in
-                let pointer = api.addOptionsMenuItem.unsafelyUnwrapped(
+                let pointer = api.pointee.addOptionsMenuItem.unsafelyUnwrapped(
                     cTitle, buffer.baseAddress, Int32(options.count), menuItemTrampoline, nil)
                 item = MenuItem(pointer: pointer, retainedOptionTitles: copies, onSelect: onSelect)
             }
@@ -393,20 +393,20 @@ extension System {
     /// Registers the wrapper as the item's userdata and keeps it alive.
     private static func registered(_ item: MenuItem?) -> MenuItem? {
         guard let item else { return nil }
-        api.setMenuItemUserdata.unsafelyUnwrapped(
+        api.pointee.setMenuItemUserdata.unsafelyUnwrapped(
             item.pointer, Unmanaged.passUnretained(item).toOpaque())
         liveMenuItems.append(item)
         return item
     }
 
     public static func removeMenuItem(_ item: MenuItem) {
-        api.removeMenuItem.unsafelyUnwrapped(item.pointer)
+        api.pointee.removeMenuItem.unsafelyUnwrapped(item.pointer)
         item.deallocateRetainedTitles()
         liveMenuItems.removeAll { $0 === item }
     }
 
     public static func removeAllMenuItems() {
-        api.removeAllMenuItems.unsafelyUnwrapped()
+        api.pointee.removeAllMenuItems.unsafelyUnwrapped()
         for item in liveMenuItems { item.deallocateRetainedTitles() }
         liveMenuItems = []
     }
@@ -414,35 +414,35 @@ extension System {
     /// Sets a custom image for the pause menu, optionally shifted left by
     /// `xOffset` (0...200).
     public static func setMenuImage(_ bitmap: Graphics.Bitmap?, xOffset: Int = 0) {
-        api.setMenuImage.unsafelyUnwrapped(bitmap?.pointer, Int32(xOffset))
+        api.pointee.setMenuImage.unsafelyUnwrapped(bitmap?.pointer, Int32(xOffset))
     }
 
     // MARK: - Device state
 
     /// Whether the user has enabled the "reduce flashing" accessibility setting.
-    public static var reduceFlashing: Bool { api.getReduceFlashing.unsafelyUnwrapped() != 0 }
+    public static var reduceFlashing: Bool { api.pointee.getReduceFlashing.unsafelyUnwrapped() != 0 }
 
     /// Battery charge, 0...100.
-    public static var batteryPercentage: Float { api.getBatteryPercentage.unsafelyUnwrapped() }
+    public static var batteryPercentage: Float { api.pointee.getBatteryPercentage.unsafelyUnwrapped() }
 
-    public static var batteryVoltage: Float { api.getBatteryVoltage.unsafelyUnwrapped() }
+    public static var batteryVoltage: Float { api.pointee.getBatteryVoltage.unsafelyUnwrapped() }
 
     /// Flushes the CPU instruction cache after loading code at runtime.
-    public static func clearICache() { api.clearICache.unsafelyUnwrapped() }
+    public static func clearICache() { api.pointee.clearICache.unsafelyUnwrapped() }
 
     /// Quits the current game and restarts it with the given launch arguments.
     public static func restartGame(launchArguments: String? = nil) {
         if let launchArguments {
-            launchArguments.withPlaydateCString { api.restartGame.unsafelyUnwrapped($0) }
+            launchArguments.withPlaydateCString { api.pointee.restartGame.unsafelyUnwrapped($0) }
         } else {
-            api.restartGame.unsafelyUnwrapped(nil)
+            api.pointee.restartGame.unsafelyUnwrapped(nil)
         }
     }
 
     /// The arguments the game was launched with, and the path of the pdx.
     public static var launchArguments: (arguments: String?, path: String?) {
         var path: UnsafePointer<CChar>?
-        let arguments = api.getLaunchArgs.unsafelyUnwrapped(&path)
+        let arguments = api.pointee.getLaunchArgs.unsafelyUnwrapped(&path)
         return (String(playdateCString: arguments), String(playdateCString: path))
     }
 
@@ -450,12 +450,12 @@ extension System {
     /// not active or the send fails.
     @discardableResult
     public static func sendMirrorData(command: UInt8, data: UnsafeMutableRawBufferPointer) -> Bool {
-        api.sendMirrorData.unsafelyUnwrapped(command, data.baseAddress, Int32(data.count))
+        api.pointee.sendMirrorData.unsafelyUnwrapped(command, data.baseAddress, Int32(data.count))
     }
 
     /// OS, language, and pdx version information.
     public static var info: Info {
-        let info = api.getSystemInfo.unsafelyUnwrapped().unsafelyUnwrapped.pointee
+        let info = api.pointee.getSystemInfo.unsafelyUnwrapped().unsafelyUnwrapped.pointee
         return Info(osVersion: info.osversion,
                     language: Language(info.language),
                     pdxVersion: info.pdxversion)
@@ -464,7 +464,7 @@ extension System {
     /// Looks up a localized string by key from the game's strings files.
     public static func localizedText(forKey key: String, language: Language = .system) -> String? {
         key.withPlaydateCString { cKey in
-            guard let cString = api.getLocalizedText.unsafelyUnwrapped(cKey, language.cValue) else {
+            guard let cString = api.pointee.getLocalizedText.unsafelyUnwrapped(cKey, language.cValue) else {
                 return nil
             }
             let text = String(playdateCString: cString)
@@ -474,12 +474,12 @@ extension System {
     }
 
     /// The system volume, 0...1.
-    public static var volume: Float { api.getVolume.unsafelyUnwrapped() }
+    public static var volume: Float { api.pointee.getVolume.unsafelyUnwrapped() }
 
     public static var powerStatus: PowerStatus {
-        PowerStatus(rawValue: api.getPowerStatus.unsafelyUnwrapped().rawValue)
+        PowerStatus(rawValue: api.pointee.getPowerStatus.unsafelyUnwrapped().rawValue)
     }
 
     /// Quits the game and returns to the launcher.
-    public static func exitToLauncher() { api.exitToLauncher.unsafelyUnwrapped() }
+    public static func exitToLauncher() { api.pointee.exitToLauncher.unsafelyUnwrapped() }
 }

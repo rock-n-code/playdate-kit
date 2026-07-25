@@ -6,7 +6,7 @@
 
 internal import CPlaydate
 
-private var effectAPI: playdate_sound_effect { snd.effect.pointee }
+private var effectAPI: UnsafePointer<playdate_sound_effect> { snd.pointee.effect.unsafelyUnwrapped }
 
 extension Sound {
     /// An effect that processes a channel's audio: the base class of the
@@ -38,9 +38,9 @@ extension Sound {
         public init(processor: @escaping Processor) {
             let box = Unmanaged.passRetained(ProcessorBox(processor))
             processorBox = box
-            pointer = effectAPI.newEffect.unsafelyUnwrapped({ effect, left, right, nsamples, bufactive in
+            pointer = effectAPI.pointee.newEffect.unsafelyUnwrapped({ effect, left, right, nsamples, bufactive in
                 guard let effect, let left,
-                      let userdata = effectAPI.getUserdata.unsafelyUnwrapped(effect) else { return 0 }
+                      let userdata = effectAPI.pointee.getUserdata.unsafelyUnwrapped(effect) else { return 0 }
                 let box = Unmanaged<ProcessorBox>.fromOpaque(userdata).takeUnretainedValue()
                 let leftBuffer = UnsafeMutableBufferPointer(start: left, count: Int(nsamples))
                 let rightBuffer = right.map { UnsafeMutableBufferPointer(start: $0, count: Int(nsamples)) }
@@ -51,21 +51,21 @@ extension Sound {
 
         deinit {
             if isOwned {
-                effectAPI.freeEffect.unsafelyUnwrapped(pointer)
+                effectAPI.pointee.freeEffect.unsafelyUnwrapped(pointer)
             }
             processorBox?.release()
         }
 
         /// The wet/dry mix: 1 is fully processed, 0 fully dry.
         public func setMix(_ level: Float) {
-            effectAPI.setMix.unsafelyUnwrapped(pointer, level)
+            effectAPI.pointee.setMix.unsafelyUnwrapped(pointer, level)
         }
 
         public var mixModulator: SignalValue? {
-            get { SignalValue.wrap(effectAPI.getMixModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(effectAPI.pointee.getMixModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedMixModulator = newValue
-                effectAPI.setMixModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                effectAPI.pointee.setMixModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
     }
@@ -74,7 +74,7 @@ extension Sound {
 
     /// A two-pole IIR filter. Wraps `TwoPoleFilter`.
     public final class TwoPoleFilter: Effect {
-        private static var api: playdate_sound_effect_twopolefilter { effectAPI.twopolefilter.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_twopolefilter> { effectAPI.pointee.twopolefilter.unsafelyUnwrapped }
 
         public enum Kind: UInt32, Sendable {
             case lowPass = 0
@@ -92,48 +92,48 @@ extension Sound {
         private var retainedResonanceModulator: SignalValue?
 
         public init(kind: Kind = .lowPass) {
-            super.init(pointer: TwoPoleFilter.api.newFilter.unsafelyUnwrapped().unsafelyUnwrapped,
+            super.init(pointer: TwoPoleFilter.api.pointee.newFilter.unsafelyUnwrapped().unsafelyUnwrapped,
                        isOwned: true)
             setKind(kind)
         }
 
         deinit {
             if isOwned {
-                TwoPoleFilter.api.freeFilter.unsafelyUnwrapped(pointer)
+                TwoPoleFilter.api.pointee.freeFilter.unsafelyUnwrapped(pointer)
             }
         }
 
         public func setKind(_ kind: Kind) {
-            TwoPoleFilter.api.setType.unsafelyUnwrapped(pointer, kind.cValue)
+            TwoPoleFilter.api.pointee.setType.unsafelyUnwrapped(pointer, kind.cValue)
         }
 
         /// The center/corner frequency, in Hz.
         public func setFrequency(_ frequency: Float) {
-            TwoPoleFilter.api.setFrequency.unsafelyUnwrapped(pointer, frequency)
+            TwoPoleFilter.api.pointee.setFrequency.unsafelyUnwrapped(pointer, frequency)
         }
 
         public var frequencyModulator: SignalValue? {
-            get { SignalValue.wrap(TwoPoleFilter.api.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(TwoPoleFilter.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedFrequencyModulator = newValue
-                TwoPoleFilter.api.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                TwoPoleFilter.api.pointee.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// The gain, used by PEQ and shelf filters.
         public func setGain(_ gain: Float) {
-            TwoPoleFilter.api.setGain.unsafelyUnwrapped(pointer, gain)
+            TwoPoleFilter.api.pointee.setGain.unsafelyUnwrapped(pointer, gain)
         }
 
         public func setResonance(_ resonance: Float) {
-            TwoPoleFilter.api.setResonance.unsafelyUnwrapped(pointer, resonance)
+            TwoPoleFilter.api.pointee.setResonance.unsafelyUnwrapped(pointer, resonance)
         }
 
         public var resonanceModulator: SignalValue? {
-            get { SignalValue.wrap(TwoPoleFilter.api.getResonanceModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(TwoPoleFilter.api.pointee.getResonanceModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedResonanceModulator = newValue
-                TwoPoleFilter.api.setResonanceModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                TwoPoleFilter.api.pointee.setResonanceModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
     }
@@ -142,32 +142,32 @@ extension Sound {
 
     /// A one-pole low/high-pass filter. Wraps `OnePoleFilter`.
     public final class OnePoleFilter: Effect {
-        private static var api: playdate_sound_effect_onepolefilter { effectAPI.onepolefilter.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_onepolefilter> { effectAPI.pointee.onepolefilter.unsafelyUnwrapped }
 
         private var retainedParameterModulator: SignalValue?
 
         public init() {
-            super.init(pointer: OnePoleFilter.api.newFilter.unsafelyUnwrapped().unsafelyUnwrapped,
+            super.init(pointer: OnePoleFilter.api.pointee.newFilter.unsafelyUnwrapped().unsafelyUnwrapped,
                        isOwned: true)
         }
 
         deinit {
             if isOwned {
-                OnePoleFilter.api.freeFilter.unsafelyUnwrapped(pointer)
+                OnePoleFilter.api.pointee.freeFilter.unsafelyUnwrapped(pointer)
             }
         }
 
         /// The filter's cutoff: -1 to 1, where values above 0 are low-pass
         /// and values below 0 high-pass.
         public func setParameter(_ parameter: Float) {
-            OnePoleFilter.api.setParameter.unsafelyUnwrapped(pointer, parameter)
+            OnePoleFilter.api.pointee.setParameter.unsafelyUnwrapped(pointer, parameter)
         }
 
         public var parameterModulator: SignalValue? {
-            get { SignalValue.wrap(OnePoleFilter.api.getParameterModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(OnePoleFilter.api.pointee.getParameterModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedParameterModulator = newValue
-                OnePoleFilter.api.setParameterModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                OnePoleFilter.api.pointee.setParameterModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
     }
@@ -176,49 +176,49 @@ extension Sound {
 
     /// A bit-crushing and downsampling effect. Wraps `BitCrusher`.
     public final class BitCrusher: Effect {
-        private static var api: playdate_sound_effect_bitcrusher { effectAPI.bitcrusher.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_bitcrusher> { effectAPI.pointee.bitcrusher.unsafelyUnwrapped }
 
         private var retainedModulators: [SignalValue] = []
 
         public init() {
-            super.init(pointer: BitCrusher.api.newBitCrusher.unsafelyUnwrapped().unsafelyUnwrapped,
+            super.init(pointer: BitCrusher.api.pointee.newBitCrusher.unsafelyUnwrapped().unsafelyUnwrapped,
                        isOwned: true)
         }
 
         deinit {
             if isOwned {
-                BitCrusher.api.freeBitCrusher.unsafelyUnwrapped(pointer)
+                BitCrusher.api.pointee.freeBitCrusher.unsafelyUnwrapped(pointer)
             }
         }
 
         /// When `true`, `setDepth` values map exponentially to bit depth.
         public func setExponential(_ flag: Bool) {
-            BitCrusher.api.setExponential.unsafelyUnwrapped(pointer, flag)
+            BitCrusher.api.pointee.setExponential.unsafelyUnwrapped(pointer, flag)
         }
 
         /// The amount of crushing, 0 (none) to 1 (quantized to 1 bit).
         public func setDepth(_ depth: Float) {
-            BitCrusher.api.setDepth.unsafelyUnwrapped(pointer, depth)
+            BitCrusher.api.pointee.setDepth.unsafelyUnwrapped(pointer, depth)
         }
 
         public var depthModulator: SignalValue? {
-            get { SignalValue.wrap(BitCrusher.api.getDepthModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(BitCrusher.api.pointee.getDepthModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                BitCrusher.api.setDepthModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                BitCrusher.api.pointee.setDepthModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// The amount of downsampling, 0 (none) to 1 (every sample repeated).
         public func setDownsampling(_ downsampling: Float) {
-            BitCrusher.api.setDownsampling.unsafelyUnwrapped(pointer, downsampling)
+            BitCrusher.api.pointee.setDownsampling.unsafelyUnwrapped(pointer, downsampling)
         }
 
         public var downsamplingModulator: SignalValue? {
-            get { SignalValue.wrap(BitCrusher.api.getDownsamplingModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(BitCrusher.api.pointee.getDownsamplingModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                BitCrusher.api.setDownsamplingModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                BitCrusher.api.pointee.setDownsamplingModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
@@ -231,31 +231,31 @@ extension Sound {
 
     /// A ring modulator effect. Wraps `RingModulator`.
     public final class RingModulator: Effect {
-        private static var api: playdate_sound_effect_ringmodulator { effectAPI.ringmodulator.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_ringmodulator> { effectAPI.pointee.ringmodulator.unsafelyUnwrapped }
 
         private var retainedFrequencyModulator: SignalValue?
 
         public init() {
-            super.init(pointer: RingModulator.api.newRingmod.unsafelyUnwrapped().unsafelyUnwrapped,
+            super.init(pointer: RingModulator.api.pointee.newRingmod.unsafelyUnwrapped().unsafelyUnwrapped,
                        isOwned: true)
         }
 
         deinit {
             if isOwned {
-                RingModulator.api.freeRingmod.unsafelyUnwrapped(pointer)
+                RingModulator.api.pointee.freeRingmod.unsafelyUnwrapped(pointer)
             }
         }
 
         /// The modulation frequency, in Hz.
         public func setFrequency(_ frequency: Float) {
-            RingModulator.api.setFrequency.unsafelyUnwrapped(pointer, frequency)
+            RingModulator.api.pointee.setFrequency.unsafelyUnwrapped(pointer, frequency)
         }
 
         public var frequencyModulator: SignalValue? {
-            get { SignalValue.wrap(RingModulator.api.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(RingModulator.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedFrequencyModulator = newValue
-                RingModulator.api.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                RingModulator.api.pointee.setFrequencyModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
     }
@@ -265,7 +265,7 @@ extension Sound {
     /// A tap into a delay line; produces audio and can be added to a channel
     /// as a source. Wraps `DelayLineTap`.
     public final class DelayLineTap: Source {
-        private static var api: playdate_sound_effect_delayline { effectAPI.delayline.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_delayline> { effectAPI.pointee.delayline.unsafelyUnwrapped }
 
         /// The delay line is retained so the tap stays valid.
         private let delayLine: DelayLine
@@ -277,59 +277,59 @@ extension Sound {
         }
 
         deinit {
-            DelayLineTap.api.freeTap.unsafelyUnwrapped(pointer)
+            DelayLineTap.api.pointee.freeTap.unsafelyUnwrapped(pointer)
         }
 
         /// The tap's position in the delay line, in frames.
         public func setDelay(frames: Int) {
-            DelayLineTap.api.setTapDelay.unsafelyUnwrapped(pointer, Int32(frames))
+            DelayLineTap.api.pointee.setTapDelay.unsafelyUnwrapped(pointer, Int32(frames))
         }
 
         public var delayModulator: SignalValue? {
-            get { SignalValue.wrap(DelayLineTap.api.getTapDelayModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(DelayLineTap.api.pointee.getTapDelayModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retainedDelayModulator = newValue
-                DelayLineTap.api.setTapDelayModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                DelayLineTap.api.pointee.setTapDelayModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// For stereo delay lines: swaps the left and right channels.
         public func setChannelsFlipped(_ flipped: Bool) {
-            DelayLineTap.api.setTapChannelsFlipped.unsafelyUnwrapped(pointer, flipped ? 1 : 0)
+            DelayLineTap.api.pointee.setTapChannelsFlipped.unsafelyUnwrapped(pointer, flipped ? 1 : 0)
         }
     }
 
     /// A delay line effect. Wraps `DelayLine`.
     public final class DelayLine: Effect {
-        private static var api: playdate_sound_effect_delayline { effectAPI.delayline.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_delayline> { effectAPI.pointee.delayline.unsafelyUnwrapped }
 
         /// Creates a delay line holding `length` frames.
         public init(length: Int, stereo: Bool = false) {
-            super.init(pointer: DelayLine.api.newDelayLine.unsafelyUnwrapped(
+            super.init(pointer: DelayLine.api.pointee.newDelayLine.unsafelyUnwrapped(
                 Int32(length), stereo ? 1 : 0).unsafelyUnwrapped, isOwned: true)
         }
 
         deinit {
             if isOwned {
-                DelayLine.api.freeDelayLine.unsafelyUnwrapped(pointer)
+                DelayLine.api.pointee.freeDelayLine.unsafelyUnwrapped(pointer)
             }
         }
 
         /// Changes the delay length. Cannot be larger than the line's
         /// original length.
         public func setLength(frames: Int) {
-            DelayLine.api.setLength.unsafelyUnwrapped(pointer, Int32(frames))
+            DelayLine.api.pointee.setLength.unsafelyUnwrapped(pointer, Int32(frames))
         }
 
         /// The feedback level, 0...1.
         public func setFeedback(_ feedback: Float) {
-            DelayLine.api.setFeedback.unsafelyUnwrapped(pointer, feedback)
+            DelayLine.api.pointee.setFeedback.unsafelyUnwrapped(pointer, feedback)
         }
 
         /// Adds a tap `delay` frames behind the write head. The tap can be
         /// added to a channel as a sound source.
         public func addTap(delay: Int) -> DelayLineTap? {
-            guard let tap = DelayLine.api.addTap.unsafelyUnwrapped(pointer, Int32(delay)) else {
+            guard let tap = DelayLine.api.pointee.addTap.unsafelyUnwrapped(pointer, Int32(delay)) else {
                 return nil
             }
             return DelayLineTap(pointer: tap, delayLine: self)
@@ -340,49 +340,49 @@ extension Sound {
 
     /// An overdrive/distortion effect. Wraps `Overdrive`.
     public final class Overdrive: Effect {
-        private static var api: playdate_sound_effect_overdrive { effectAPI.overdrive.pointee }
+        private static var api: UnsafePointer<playdate_sound_effect_overdrive> { effectAPI.pointee.overdrive.unsafelyUnwrapped }
 
         private var retainedModulators: [SignalValue] = []
 
         public init() {
-            super.init(pointer: Overdrive.api.newOverdrive.unsafelyUnwrapped().unsafelyUnwrapped,
+            super.init(pointer: Overdrive.api.pointee.newOverdrive.unsafelyUnwrapped().unsafelyUnwrapped,
                        isOwned: true)
         }
 
         deinit {
             if isOwned {
-                Overdrive.api.freeOverdrive.unsafelyUnwrapped(pointer)
+                Overdrive.api.pointee.freeOverdrive.unsafelyUnwrapped(pointer)
             }
         }
 
         /// The input gain applied before clipping.
         public func setGain(_ gain: Float) {
-            Overdrive.api.setGain.unsafelyUnwrapped(pointer, gain)
+            Overdrive.api.pointee.setGain.unsafelyUnwrapped(pointer, gain)
         }
 
         /// The level where the amplified input clips.
         public func setLimit(_ limit: Float) {
-            Overdrive.api.setLimit.unsafelyUnwrapped(pointer, limit)
+            Overdrive.api.pointee.setLimit.unsafelyUnwrapped(pointer, limit)
         }
 
         public var limitModulator: SignalValue? {
-            get { SignalValue.wrap(Overdrive.api.getLimitModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(Overdrive.api.pointee.getLimitModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                Overdrive.api.setLimitModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                Overdrive.api.pointee.setLimitModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 
         /// A DC offset applied to the input, making the clipping asymmetric.
         public func setOffset(_ offset: Float) {
-            Overdrive.api.setOffset.unsafelyUnwrapped(pointer, offset)
+            Overdrive.api.pointee.setOffset.unsafelyUnwrapped(pointer, offset)
         }
 
         public var offsetModulator: SignalValue? {
-            get { SignalValue.wrap(Overdrive.api.getOffsetModulator.unsafelyUnwrapped(pointer)) }
+            get { SignalValue.wrap(Overdrive.api.pointee.getOffsetModulator.unsafelyUnwrapped(pointer)) }
             set {
                 retain(newValue)
-                Overdrive.api.setOffsetModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
+                Overdrive.api.pointee.setOffsetModulator.unsafelyUnwrapped(pointer, newValue?.pointer)
             }
         }
 

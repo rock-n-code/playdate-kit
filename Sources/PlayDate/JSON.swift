@@ -9,7 +9,7 @@
 
 internal import CPlaydate
 
-private var jsonAPI: playdate_json { Playdate.api.json.pointee }
+private var jsonAPI: UnsafePointer<playdate_json> { Playdate.jsonAPI }
 
 /// The JSON API: decoding to and encoding from a `Value` tree.
 public enum JSON {}
@@ -112,7 +112,7 @@ extension JSON {
         var outval = json_value()
         let ok = jsonString.withPlaydateCString { cString in
             withExtendedLifetime(context) {
-                jsonAPI.decodeString.unsafelyUnwrapped(&decoder, cString, &outval) != 0
+                jsonAPI.pointee.decodeString.unsafelyUnwrapped(&decoder, cString, &outval) != 0
             }
         }
         guard ok else {
@@ -141,7 +141,7 @@ extension JSON {
         var outval = json_value()
         let ok = withExtendedLifetime(context) {
             withExtendedLifetime(file) {
-                jsonAPI.decode.unsafelyUnwrapped(&decoder, reader, &outval) != 0
+                jsonAPI.pointee.decode.unsafelyUnwrapped(&decoder, reader, &outval) != 0
             }
         }
         guard ok else {
@@ -172,7 +172,7 @@ extension JSON {
         private let output = Output()
 
         public init(pretty: Bool = false) {
-            jsonAPI.initEncoder.unsafelyUnwrapped(&encoder, { userdata, string, length in
+            jsonAPI.pointee.initEncoder.unsafelyUnwrapped(&encoder, { userdata, string, length in
                 guard let userdata, let string else { return }
                 let output = Unmanaged<Output>.fromOpaque(userdata).takeUnretainedValue()
                 let bytes = UnsafeRawBufferPointer(start: string, count: Int(length))

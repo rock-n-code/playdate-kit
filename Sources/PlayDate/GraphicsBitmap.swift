@@ -23,7 +23,7 @@ extension Graphics {
         /// Allocates a new bitmap filled with `backgroundColor`.
         public convenience init(width: Int, height: Int, backgroundColor: Color = .clear) {
             let pointer = backgroundColor.withLCDColor {
-                gfx.newBitmap.unsafelyUnwrapped(Int32(width), Int32(height), $0)
+                gfx.pointee.newBitmap.unsafelyUnwrapped(Int32(width), Int32(height), $0)
             }
             self.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
         }
@@ -31,14 +31,14 @@ extension Graphics {
         /// Loads a bitmap from a file in the game's pdx or Data directory.
         public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            let pointer = path.withPlaydateCString { gfx.loadBitmap.unsafelyUnwrapped($0, &error) }
+            let pointer = path.withPlaydateCString { gfx.pointee.loadBitmap.unsafelyUnwrapped($0, &error) }
             guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer, isOwned: true)
         }
 
         deinit {
             if isOwned {
-                gfx.freeBitmap.unsafelyUnwrapped(pointer)
+                gfx.pointee.freeBitmap.unsafelyUnwrapped(pointer)
             }
         }
 
@@ -58,7 +58,7 @@ extension Graphics {
             var width: Int32 = 0, height: Int32 = 0, rowBytes: Int32 = 0
             var mask: UnsafeMutablePointer<UInt8>?
             var data: UnsafeMutablePointer<UInt8>?
-            gfx.getBitmapData.unsafelyUnwrapped(pointer, &width, &height, &rowBytes, &mask, &data)
+            gfx.pointee.getBitmapData.unsafelyUnwrapped(pointer, &width, &height, &rowBytes, &mask, &data)
             return Data(width: Int(width), height: Int(height), rowBytes: Int(rowBytes),
                         mask: mask, data: data)
         }
@@ -68,7 +68,7 @@ extension Graphics {
 
         /// The color of the pixel at (x, y).
         public func pixel(x: Int, y: Int) -> SolidColor {
-            SolidColor(gfx.getBitmapPixel.unsafelyUnwrapped(pointer, Int32(x), Int32(y)))
+            SolidColor(gfx.pointee.getBitmapPixel.unsafelyUnwrapped(pointer, Int32(x), Int32(y)))
         }
 
         // MARK: Operations
@@ -76,23 +76,23 @@ extension Graphics {
         /// Replaces the bitmap's contents with the image at `path`.
         public func load(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            path.withPlaydateCString { gfx.loadIntoBitmap.unsafelyUnwrapped($0, pointer, &error) }
+            path.withPlaydateCString { gfx.pointee.loadIntoBitmap.unsafelyUnwrapped($0, pointer, &error) }
             if let error { throw PlaydateError(cString: error) }
         }
 
         /// Fills the bitmap with `color`.
         public func clear(color: Color) {
-            color.withLCDColor { gfx.clearBitmap.unsafelyUnwrapped(pointer, $0) }
+            color.withLCDColor { gfx.pointee.clearBitmap.unsafelyUnwrapped(pointer, $0) }
         }
 
         public func copy() -> Bitmap {
-            Bitmap(pointer: gfx.copyBitmap.unsafelyUnwrapped(pointer).unsafelyUnwrapped, isOwned: true)
+            Bitmap(pointer: gfx.pointee.copyBitmap.unsafelyUnwrapped(pointer).unsafelyUnwrapped, isOwned: true)
         }
 
         /// Returns a new bitmap rotated by `degrees` (clockwise) and scaled.
         public func rotated(by degrees: Float, xScale: Float = 1, yScale: Float = 1) -> Bitmap? {
             var allocatedSize: Int32 = 0
-            guard let rotated = gfx.rotatedBitmap.unsafelyUnwrapped(
+            guard let rotated = gfx.pointee.rotatedBitmap.unsafelyUnwrapped(
                 pointer, degrees, xScale, yScale, &allocatedSize) else { return nil }
             return Bitmap(pointer: rotated, isOwned: true)
         }
@@ -100,13 +100,13 @@ extension Graphics {
         /// Sets a mask image. The mask must match the bitmap's dimensions.
         @discardableResult
         public func setMask(_ mask: Bitmap?) -> Bool {
-            gfx.setBitmapMask.unsafelyUnwrapped(pointer, mask?.pointer) != 0
+            gfx.pointee.setBitmapMask.unsafelyUnwrapped(pointer, mask?.pointer) != 0
         }
 
         /// The bitmap's mask, if any. The returned bitmap references storage
         /// owned by this bitmap.
         public var mask: Bitmap? {
-            guard let mask = gfx.getBitmapMask.unsafelyUnwrapped(pointer) else { return nil }
+            guard let mask = gfx.pointee.getBitmapMask.unsafelyUnwrapped(pointer) else { return nil }
             return Bitmap(pointer: mask, isOwned: false)
         }
 
@@ -116,7 +116,7 @@ extension Graphics {
                                        other: Bitmap, otherX: Int, otherY: Int,
                                        otherFlip: BitmapFlip = .unflipped,
                                        in rect: Rect) -> Bool {
-            gfx.checkMaskCollision.unsafelyUnwrapped(
+            gfx.pointee.checkMaskCollision.unsafelyUnwrapped(
                 pointer, Int32(x), Int32(y), flip.cValue,
                 other.pointer, Int32(otherX), Int32(otherY), otherFlip.cValue,
                 rect.cValue) != 0
@@ -126,13 +126,13 @@ extension Graphics {
 
         /// Draws the bitmap with its upper-left corner at (x, y).
         public func draw(x: Int, y: Int, flip: BitmapFlip = .unflipped) {
-            gfx.drawBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), flip.cValue)
+            gfx.pointee.drawBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), flip.cValue)
         }
 
         /// Draws the bitmap scaled by (xScale, yScale) with its upper-left
         /// corner at (x, y).
         public func drawScaled(x: Int, y: Int, xScale: Float, yScale: Float) {
-            gfx.drawScaledBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), xScale, yScale)
+            gfx.pointee.drawScaledBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), xScale, yScale)
         }
 
         /// Draws the bitmap rotated by `degrees` around its anchor point,
@@ -140,13 +140,13 @@ extension Graphics {
         public func drawRotated(x: Int, y: Int, degrees: Float,
                                 centerX: Float = 0.5, centerY: Float = 0.5,
                                 xScale: Float = 1, yScale: Float = 1) {
-            gfx.drawRotatedBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), degrees,
+            gfx.pointee.drawRotatedBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y), degrees,
                                                     centerX, centerY, xScale, yScale)
         }
 
         /// Tiles the bitmap over the given area.
         public func tile(x: Int, y: Int, width: Int, height: Int, flip: BitmapFlip = .unflipped) {
-            gfx.tileBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y),
+            gfx.pointee.tileBitmap.unsafelyUnwrapped(pointer, Int32(x), Int32(y),
                                              Int32(width), Int32(height), flip.cValue)
         }
     }
@@ -161,26 +161,26 @@ extension Graphics {
 
         /// Allocates a table with room for `count` bitmaps of the given size.
         public convenience init(count: Int, width: Int, height: Int) {
-            let pointer = gfx.newBitmapTable.unsafelyUnwrapped(Int32(count), Int32(width), Int32(height))
+            let pointer = gfx.pointee.newBitmapTable.unsafelyUnwrapped(Int32(count), Int32(width), Int32(height))
             self.init(pointer: pointer.unsafelyUnwrapped)
         }
 
         /// Loads an image table from a file.
         public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            let pointer = path.withPlaydateCString { gfx.loadBitmapTable.unsafelyUnwrapped($0, &error) }
+            let pointer = path.withPlaydateCString { gfx.pointee.loadBitmapTable.unsafelyUnwrapped($0, &error) }
             guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer)
         }
 
         deinit {
-            gfx.freeBitmapTable.unsafelyUnwrapped(pointer)
+            gfx.pointee.freeBitmapTable.unsafelyUnwrapped(pointer)
         }
 
         /// Replaces the table's contents with the image table at `path`.
         public func load(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            path.withPlaydateCString { gfx.loadIntoBitmapTable.unsafelyUnwrapped($0, pointer, &error) }
+            path.withPlaydateCString { gfx.pointee.loadIntoBitmapTable.unsafelyUnwrapped($0, pointer, &error) }
             if let error { throw PlaydateError(cString: error) }
         }
 
@@ -188,7 +188,7 @@ extension Graphics {
         /// references storage owned by the table; keep the table alive while
         /// using it.
         public func bitmap(at index: Int) -> Bitmap? {
-            guard let bitmap = gfx.getTableBitmap.unsafelyUnwrapped(pointer, Int32(index)) else {
+            guard let bitmap = gfx.pointee.getTableBitmap.unsafelyUnwrapped(pointer, Int32(index)) else {
                 return nil
             }
             return Bitmap(pointer: bitmap, isOwned: false)
@@ -198,7 +198,7 @@ extension Graphics {
         /// of the source image.
         public var info: (count: Int, cellsWide: Int) {
             var count: Int32 = 0, width: Int32 = 0
-            gfx.getBitmapTableInfo.unsafelyUnwrapped(pointer, &count, &width)
+            gfx.pointee.getBitmapTableInfo.unsafelyUnwrapped(pointer, &count, &width)
             return (Int(count), Int(width))
         }
 

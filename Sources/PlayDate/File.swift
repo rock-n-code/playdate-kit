@@ -8,11 +8,11 @@
 
 internal import CPlaydate
 
-private var fileAPI: playdate_file { Playdate.api.file.pointee }
+private var fileAPI: UnsafePointer<playdate_file> { Playdate.fileAPI }
 
 /// The most recent file system error as a thrown error.
 private func lastFileError() -> PlaydateError {
-    PlaydateError(cString: fileAPI.geterr.unsafelyUnwrapped())
+    PlaydateError(cString: fileAPI.pointee.geterr.unsafelyUnwrapped())
 }
 
 /// The file API: access to the game's Data directory and pdx contents.
@@ -62,7 +62,7 @@ extension File {
             var callback = each
             return path.withPlaydateCString { cPath in
                 withUnsafeMutablePointer(to: &callback) { callbackPointer in
-                    fileAPI.listfiles.unsafelyUnwrapped(cPath, { cName, userdata in
+                    fileAPI.pointee.listfiles.unsafelyUnwrapped(cPath, { cName, userdata in
                         guard let cName, let userdata else { return }
                         let each = userdata.assumingMemoryBound(to: ((String) -> Void).self).pointee
                         each(String(playdateCString: cName))
@@ -76,7 +76,7 @@ extension File {
     /// Information about the file or directory at `path`.
     public static func stat(_ path: String) throws(PlaydateError) -> Stat {
         var stat = FileStat()
-        let result = path.withPlaydateCString { fileAPI.stat.unsafelyUnwrapped($0, &stat) }
+        let result = path.withPlaydateCString { fileAPI.pointee.stat.unsafelyUnwrapped($0, &stat) }
         if result != 0 { throw lastFileError() }
         return Stat(
             isDirectory: stat.isdir != 0,
@@ -88,7 +88,7 @@ extension File {
 
     /// Creates a directory (and intermediate directories) in the Data directory.
     public static func mkdir(_ path: String) throws(PlaydateError) {
-        let result = path.withPlaydateCString { fileAPI.mkdir.unsafelyUnwrapped($0) }
+        let result = path.withPlaydateCString { fileAPI.pointee.mkdir.unsafelyUnwrapped($0) }
         if result != 0 { throw lastFileError() }
     }
 
@@ -96,7 +96,7 @@ extension File {
     /// `recursive` to be deleted with their contents.
     public static func unlink(_ path: String, recursive: Bool = false) throws(PlaydateError) {
         let result = path.withPlaydateCString {
-            fileAPI.unlink.unsafelyUnwrapped($0, recursive ? 1 : 0)
+            fileAPI.pointee.unlink.unsafelyUnwrapped($0, recursive ? 1 : 0)
         }
         if result != 0 { throw lastFileError() }
     }
@@ -106,7 +106,7 @@ extension File {
     public static func rename(from: String, to: String) throws(PlaydateError) {
         let result = from.withPlaydateCString { cFrom in
             to.withPlaydateCString { cTo in
-                fileAPI.rename.unsafelyUnwrapped(cFrom, cTo)
+                fileAPI.pointee.rename.unsafelyUnwrapped(cFrom, cTo)
             }
         }
         if result != 0 { throw lastFileError() }
@@ -123,7 +123,7 @@ extension File {
         /// Opens the file at `path`.
         public init(path: String, mode: Options) throws(PlaydateError) {
             let pointer = path.withPlaydateCString {
-                fileAPI.open.unsafelyUnwrapped($0, mode.cValue)
+                fileAPI.pointee.open.unsafelyUnwrapped($0, mode.cValue)
             }
             guard let pointer else { throw lastFileError() }
             self.pointer = pointer
@@ -131,7 +131,7 @@ extension File {
 
         deinit {
             if !isClosed {
-                _ = fileAPI.close.unsafelyUnwrapped(pointer)
+                _ = fileAPI.pointee.close.unsafelyUnwrapped(pointer)
             }
         }
 
@@ -139,13 +139,13 @@ extension File {
         public func close() throws(PlaydateError) {
             guard !isClosed else { return }
             isClosed = true
-            if fileAPI.close.unsafelyUnwrapped(pointer) != 0 { throw lastFileError() }
+            if fileAPI.pointee.close.unsafelyUnwrapped(pointer) != 0 { throw lastFileError() }
         }
 
         /// Reads up to `buffer.count` bytes into `buffer`. Returns the number
         /// of bytes read; 0 indicates end of file.
         public func read(into buffer: UnsafeMutableRawBufferPointer) throws(PlaydateError) -> Int {
-            let result = fileAPI.read.unsafelyUnwrapped(
+            let result = fileAPI.pointee.read.unsafelyUnwrapped(
                 pointer, buffer.baseAddress, UInt32(buffer.count))
             if result < 0 { throw lastFileError() }
             return Int(result)
@@ -155,7 +155,7 @@ extension File {
         public func read(length: Int) throws(PlaydateError) -> [UInt8] {
             var bytes = [UInt8](repeating: 0, count: length)
             let result = bytes.withUnsafeMutableBytes { buffer in
-                fileAPI.read.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
+                fileAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
             }
             if result < 0 { throw lastFileError() }
             bytes.removeLast(length - Int(result))
@@ -165,7 +165,7 @@ extension File {
         /// Writes the buffer to the file. Returns the number of bytes written.
         @discardableResult
         public func write(_ buffer: UnsafeRawBufferPointer) throws(PlaydateError) -> Int {
-            let result = fileAPI.write.unsafelyUnwrapped(
+            let result = fileAPI.pointee.write.unsafelyUnwrapped(
                 pointer, buffer.baseAddress, UInt32(buffer.count))
             if result < 0 { throw lastFileError() }
             return Int(result)
@@ -175,7 +175,7 @@ extension File {
         @discardableResult
         public func write(_ bytes: [UInt8]) throws(PlaydateError) -> Int {
             let result = bytes.withUnsafeBytes { buffer in
-                fileAPI.write.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
+                fileAPI.pointee.write.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
             }
             if result < 0 { throw lastFileError() }
             return Int(result)
@@ -190,21 +190,21 @@ extension File {
         /// Flushes buffered writes to disk. Returns the bytes written.
         @discardableResult
         public func flush() throws(PlaydateError) -> Int {
-            let result = fileAPI.flush.unsafelyUnwrapped(pointer)
+            let result = fileAPI.pointee.flush.unsafelyUnwrapped(pointer)
             if result < 0 { throw lastFileError() }
             return Int(result)
         }
 
         /// The current read/write offset.
         public func tell() throws(PlaydateError) -> Int {
-            let result = fileAPI.tell.unsafelyUnwrapped(pointer)
+            let result = fileAPI.pointee.tell.unsafelyUnwrapped(pointer)
             if result < 0 { throw lastFileError() }
             return Int(result)
         }
 
         /// Moves the read/write offset to `offset` relative to `origin`.
         public func seek(to offset: Int, from origin: SeekOrigin = .start) throws(PlaydateError) {
-            if fileAPI.seek.unsafelyUnwrapped(pointer, Int32(offset), origin.rawValue) != 0 {
+            if fileAPI.pointee.seek.unsafelyUnwrapped(pointer, Int32(offset), origin.rawValue) != 0 {
                 throw lastFileError()
             }
         }

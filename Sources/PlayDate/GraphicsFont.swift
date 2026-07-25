@@ -21,7 +21,7 @@ extension Graphics {
         /// Loads a font from a file.
         public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            let pointer = path.withPlaydateCString { gfx.loadFont.unsafelyUnwrapped($0, &error) }
+            let pointer = path.withPlaydateCString { gfx.pointee.loadFont.unsafelyUnwrapped($0, &error) }
             guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer)
         }
@@ -32,7 +32,7 @@ extension Graphics {
             let copy = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 4)
             copy.copyMemory(from: data.baseAddress.unsafelyUnwrapped, byteCount: data.count)
             let fontData = OpaquePointer(copy)
-            guard let pointer = gfx.makeFontFromData.unsafelyUnwrapped(
+            guard let pointer = gfx.pointee.makeFontFromData.unsafelyUnwrapped(
                 fontData, wide ? 1 : 0, Int32(data.count)) else {
                 copy.deallocate()
                 return nil
@@ -48,25 +48,23 @@ extension Graphics {
 
         /// The font's glyph height in pixels.
         public var height: Int {
-            Int(gfx.getFontHeight.unsafelyUnwrapped(pointer))
+            Int(gfx.pointee.getFontHeight.unsafelyUnwrapped(pointer))
         }
 
         /// The width of `text` when drawn with this font.
         public func textWidth(_ text: String, tracking: Int = 0) -> Int {
-            let utf8 = ContiguousArray(text.utf8)
-            return utf8.withUnsafeBufferPointer { buffer in
-                Int(gfx.getTextWidth.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count,
-                                                       kUTF8Encoding, Int32(tracking)))
+            text.withPlaydateUTF8 { bytes, count in
+                Int(gfx.pointee.getTextWidth.unsafelyUnwrapped(pointer, bytes, count,
+                                                               kUTF8Encoding, Int32(tracking)))
             }
         }
 
         /// The height of `text` when wrapped to `maxWidth` with this font.
         public func textHeight(_ text: String, maxWidth: Int, wrap: TextWrappingMode = .word,
                                tracking: Int = 0, extraLeading: Int = 0) -> Int {
-            let utf8 = ContiguousArray(text.utf8)
-            return utf8.withUnsafeBufferPointer { buffer in
-                Int(gfx.getTextHeightForMaxWidth.unsafelyUnwrapped(
-                    pointer, buffer.baseAddress, buffer.count, Int32(maxWidth), kUTF8Encoding,
+            text.withPlaydateUTF8 { bytes, count in
+                Int(gfx.pointee.getTextHeightForMaxWidth.unsafelyUnwrapped(
+                    pointer, bytes, count, Int32(maxWidth), kUTF8Encoding,
                     wrap.cValue, Int32(tracking), Int32(extraLeading)))
             }
         }
@@ -74,7 +72,7 @@ extension Graphics {
         /// The page containing glyph data for the character `codepoint`
         /// belongs to. The page references data owned by the font.
         public func page(for codepoint: UInt32) -> FontPage? {
-            guard let page = gfx.getFontPage.unsafelyUnwrapped(pointer, codepoint) else { return nil }
+            guard let page = gfx.pointee.getFontPage.unsafelyUnwrapped(pointer, codepoint) else { return nil }
             return FontPage(pointer: page, font: self)
         }
 
@@ -83,7 +81,7 @@ extension Graphics {
         public func glyph(for codepoint: UInt32) -> (glyph: Glyph, bitmap: Bitmap?, advance: Int)? {
             var bitmap: OpaquePointer?
             var advance: Int32 = 0
-            guard let glyph = gfx.getFontGlyph.unsafelyUnwrapped(pointer, codepoint, &bitmap, &advance) else {
+            guard let glyph = gfx.pointee.getFontGlyph.unsafelyUnwrapped(pointer, codepoint, &bitmap, &advance) else {
                 return nil
             }
             return (Glyph(pointer: glyph, font: self),
@@ -102,7 +100,7 @@ extension Graphics {
         public func glyph(for codepoint: UInt32) -> (glyph: Glyph, bitmap: Bitmap?, advance: Int)? {
             var bitmap: OpaquePointer?
             var advance: Int32 = 0
-            guard let glyph = gfx.getPageGlyph.unsafelyUnwrapped(pointer, codepoint, &bitmap, &advance) else {
+            guard let glyph = gfx.pointee.getPageGlyph.unsafelyUnwrapped(pointer, codepoint, &bitmap, &advance) else {
                 return nil
             }
             return (Glyph(pointer: glyph, font: font),
@@ -119,7 +117,7 @@ extension Graphics {
 
         /// The kerning adjustment between this glyph and the next character.
         public func kerning(glyphCode: UInt32, nextCode: UInt32) -> Int {
-            Int(gfx.getGlyphKerning.unsafelyUnwrapped(pointer, glyphCode, nextCode))
+            Int(gfx.pointee.getGlyphKerning.unsafelyUnwrapped(pointer, glyphCode, nextCode))
         }
     }
 }

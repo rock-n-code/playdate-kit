@@ -24,6 +24,19 @@ public enum Playdate {
     /// need to pass the `PlaydateAPI*` back to C.
     public internal(set) nonisolated(unsafe) static var apiPointer: UnsafeMutablePointer<PlaydateAPI>!
 
+    // Sub-API pointers cached once at initialization, so wrapper calls are a
+    // single field load off a pointer instead of re-walking `api` per call.
+    nonisolated(unsafe) static var systemAPI: UnsafePointer<playdate_sys>!
+    nonisolated(unsafe) static var displayAPI: UnsafePointer<playdate_display>!
+    nonisolated(unsafe) static var graphicsAPI: UnsafePointer<playdate_graphics>!
+    nonisolated(unsafe) static var spriteAPI: UnsafePointer<playdate_sprite>!
+    nonisolated(unsafe) static var soundAPI: UnsafePointer<playdate_sound>!
+    nonisolated(unsafe) static var fileAPI: UnsafePointer<playdate_file>!
+    nonisolated(unsafe) static var jsonAPI: UnsafePointer<playdate_json>!
+    nonisolated(unsafe) static var luaAPI: UnsafePointer<playdate_lua>!
+    nonisolated(unsafe) static var scoreboardsAPI: UnsafePointer<playdate_scoreboards>!
+    nonisolated(unsafe) static var networkAPI: UnsafePointer<playdate_network>!
+
     /// Stores the API pointer handed to the game's `eventHandler`.
     ///
     /// Call this first, on the `.initialize` event, before using any other
@@ -31,6 +44,16 @@ public enum Playdate {
     public static func initialize(with pointer: UnsafeMutableRawPointer) {
         apiPointer = pointer.assumingMemoryBound(to: PlaydateAPI.self)
         api = apiPointer.pointee
+        systemAPI = api.system
+        displayAPI = api.display
+        graphicsAPI = api.graphics
+        spriteAPI = api.sprite
+        soundAPI = api.sound
+        fileAPI = api.file
+        jsonAPI = api.json
+        luaAPI = api.lua
+        scoreboardsAPI = api.scoreboards
+        networkAPI = api.network
     }
 }
 

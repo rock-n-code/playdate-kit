@@ -28,7 +28,7 @@ extension Sound {
     /// A signal object; also provides custom signals driven by Swift
     /// callbacks. Wraps `PDSynthSignal`.
     public final class Signal: SignalValue {
-        private static var api: playdate_sound_signal { snd.signal.pointee }
+        private static var api: UnsafePointer<playdate_sound_signal> { snd.pointee.signal.unsafelyUnwrapped }
 
         /// Custom signal callbacks.
         public struct Callbacks {
@@ -62,7 +62,7 @@ extension Sound {
         /// Creates a signal driven by the given callbacks.
         public init(callbacks: Callbacks) {
             let box = Unmanaged.passRetained(Box(callbacks))
-            let pointer = Signal.api.newSignal.unsafelyUnwrapped(
+            let pointer = Signal.api.pointee.newSignal.unsafelyUnwrapped(
                 { userdata, ioFrames, interpolationValue in
                     guard let userdata else { return 0 }
                     let box = Unmanaged<Box>.fromOpaque(userdata).takeUnretainedValue()
@@ -89,7 +89,7 @@ extension Sound {
         /// Creates a plain signal object wrapping an existing signal value,
         /// so it can be scaled and offset.
         public init(value: SignalValue) {
-            let pointer = Signal.api.newSignalForValue.unsafelyUnwrapped(value.pointer)
+            let pointer = Signal.api.pointee.newSignalForValue.unsafelyUnwrapped(value.pointer)
             super.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
         }
 
@@ -99,23 +99,23 @@ extension Sound {
 
         deinit {
             if isOwned {
-                Signal.api.freeSignal.unsafelyUnwrapped(pointer)
+                Signal.api.pointee.freeSignal.unsafelyUnwrapped(pointer)
             }
         }
 
         /// The signal's current value.
         public var value: Float {
-            Signal.api.getValue.unsafelyUnwrapped(pointer)
+            Signal.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }
 
         /// Scales the signal's output.
         public func setValueScale(_ scale: Float) {
-            Signal.api.setValueScale.unsafelyUnwrapped(pointer, scale)
+            Signal.api.pointee.setValueScale.unsafelyUnwrapped(pointer, scale)
         }
 
         /// Offsets the signal's output.
         public func setValueOffset(_ offset: Float) {
-            Signal.api.setValueOffset.unsafelyUnwrapped(pointer, offset)
+            Signal.api.pointee.setValueOffset.unsafelyUnwrapped(pointer, offset)
         }
     }
 
@@ -123,7 +123,7 @@ extension Sound {
 
     /// A low-frequency oscillator signal. Wraps `PDSynthLFO`.
     public final class LFO: SignalValue {
-        private static var api: playdate_sound_lfo { snd.lfo.pointee }
+        private static var api: UnsafePointer<playdate_sound_lfo> { snd.pointee.lfo.unsafelyUnwrapped }
 
         /// The oscillator's waveform.
         public enum Shape: UInt32, Sendable {
@@ -142,43 +142,43 @@ extension Sound {
         var function: ((LFO) -> Float)?
 
         public init(shape: Shape = .sine) {
-            let pointer = LFO.api.newLFO.unsafelyUnwrapped(shape.cValue)
+            let pointer = LFO.api.pointee.newLFO.unsafelyUnwrapped(shape.cValue)
             super.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
         }
 
         deinit {
             if isOwned {
-                LFO.api.freeLFO.unsafelyUnwrapped(pointer)
+                LFO.api.pointee.freeLFO.unsafelyUnwrapped(pointer)
             }
         }
 
         public func setShape(_ shape: Shape) {
-            LFO.api.setType.unsafelyUnwrapped(pointer, shape.cValue)
+            LFO.api.pointee.setType.unsafelyUnwrapped(pointer, shape.cValue)
         }
 
         /// The LFO rate, in cycles per second.
         public func setRate(_ rate: Float) {
-            LFO.api.setRate.unsafelyUnwrapped(pointer, rate)
+            LFO.api.pointee.setRate.unsafelyUnwrapped(pointer, rate)
         }
 
         /// The current phase, 0...1.
         public func setPhase(_ phase: Float) {
-            LFO.api.setPhase.unsafelyUnwrapped(pointer, phase)
+            LFO.api.pointee.setPhase.unsafelyUnwrapped(pointer, phase)
         }
 
         /// The phase the LFO starts at when a note starts, 0...1.
         public func setStartPhase(_ phase: Float) {
-            LFO.api.setStartPhase.unsafelyUnwrapped(pointer, phase)
+            LFO.api.pointee.setStartPhase.unsafelyUnwrapped(pointer, phase)
         }
 
         /// The center value of the LFO output.
         public func setCenter(_ center: Float) {
-            LFO.api.setCenter.unsafelyUnwrapped(pointer, center)
+            LFO.api.pointee.setCenter.unsafelyUnwrapped(pointer, center)
         }
 
         /// The amplitude of the LFO around its center.
         public func setDepth(_ depth: Float) {
-            LFO.api.setDepth.unsafelyUnwrapped(pointer, depth)
+            LFO.api.pointee.setDepth.unsafelyUnwrapped(pointer, depth)
         }
 
         /// For `.arpeggiator` LFOs: the sequence of values (in half-steps)
@@ -186,7 +186,7 @@ extension Sound {
         public func setArpeggiation(_ steps: [Float]) {
             var steps = steps
             steps.withUnsafeMutableBufferPointer { buffer in
-                LFO.api.setArpeggiation.unsafelyUnwrapped(pointer, Int32(buffer.count),
+                LFO.api.pointee.setArpeggiation.unsafelyUnwrapped(pointer, Int32(buffer.count),
                                                           buffer.baseAddress)
             }
         }
@@ -195,7 +195,7 @@ extension Sound {
         /// `interpolate` is `true`, values are interpolated between calls.
         public func setFunction(interpolate: Bool = false, _ function: @escaping (LFO) -> Float) {
             self.function = function
-            LFO.api.setFunction.unsafelyUnwrapped(pointer, { _, userdata in
+            LFO.api.pointee.setFunction.unsafelyUnwrapped(pointer, { _, userdata in
                 guard let userdata else { return 0 }
                 let lfo = Unmanaged<LFO>.fromOpaque(userdata).takeUnretainedValue()
                 return lfo.function?(lfo) ?? 0
@@ -205,26 +205,26 @@ extension Sound {
         /// Waits `holdoff` seconds after a note starts, then ramps the LFO
         /// depth up over `rampTime` seconds.
         public func setDelay(holdoff: Float, rampTime: Float) {
-            LFO.api.setDelay.unsafelyUnwrapped(pointer, holdoff, rampTime)
+            LFO.api.pointee.setDelay.unsafelyUnwrapped(pointer, holdoff, rampTime)
         }
 
         /// Whether the LFO phase restarts on every new note.
         public func setRetrigger(_ flag: Bool) {
-            LFO.api.setRetrigger.unsafelyUnwrapped(pointer, flag ? 1 : 0)
+            LFO.api.pointee.setRetrigger.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
         /// When `true`, the LFO runs globally instead of per-note.
         public func setGlobal(_ global: Bool) {
-            LFO.api.setGlobal.unsafelyUnwrapped(pointer, global ? 1 : 0)
+            LFO.api.pointee.setGlobal.unsafelyUnwrapped(pointer, global ? 1 : 0)
         }
 
         /// Seeds the random number generator used by `.sampleAndHold` LFOs.
         public func setRandomSeed(_ seed: UInt16) {
-            LFO.api.setRandomSeed.unsafelyUnwrapped(pointer, seed)
+            LFO.api.pointee.setRandomSeed.unsafelyUnwrapped(pointer, seed)
         }
 
         public var value: Float {
-            LFO.api.getValue.unsafelyUnwrapped(pointer)
+            LFO.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }
     }
 
@@ -232,12 +232,12 @@ extension Sound {
 
     /// An ADSR envelope signal. Wraps `PDSynthEnvelope`.
     public final class Envelope: SignalValue {
-        private static var api: playdate_sound_envelope { snd.envelope.pointee }
+        private static var api: UnsafePointer<playdate_sound_envelope> { snd.pointee.envelope.unsafelyUnwrapped }
 
         /// Creates an envelope with the given attack and decay times
         /// (seconds), sustain level (0...1), and release time (seconds).
         public init(attack: Float = 0, decay: Float = 0, sustain: Float = 1, release: Float = 0) {
-            let pointer = Envelope.api.newEnvelope.unsafelyUnwrapped(attack, decay, sustain, release)
+            let pointer = Envelope.api.pointee.newEnvelope.unsafelyUnwrapped(attack, decay, sustain, release)
             super.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
         }
 
@@ -247,56 +247,56 @@ extension Sound {
 
         deinit {
             if isOwned {
-                Envelope.api.freeEnvelope.unsafelyUnwrapped(pointer)
+                Envelope.api.pointee.freeEnvelope.unsafelyUnwrapped(pointer)
             }
         }
 
         public func setAttack(_ attack: Float) {
-            Envelope.api.setAttack.unsafelyUnwrapped(pointer, attack)
+            Envelope.api.pointee.setAttack.unsafelyUnwrapped(pointer, attack)
         }
 
         public func setDecay(_ decay: Float) {
-            Envelope.api.setDecay.unsafelyUnwrapped(pointer, decay)
+            Envelope.api.pointee.setDecay.unsafelyUnwrapped(pointer, decay)
         }
 
         public func setSustain(_ sustain: Float) {
-            Envelope.api.setSustain.unsafelyUnwrapped(pointer, sustain)
+            Envelope.api.pointee.setSustain.unsafelyUnwrapped(pointer, sustain)
         }
 
         public func setRelease(_ release: Float) {
-            Envelope.api.setRelease.unsafelyUnwrapped(pointer, release)
+            Envelope.api.pointee.setRelease.unsafelyUnwrapped(pointer, release)
         }
 
         /// When `true`, a new note while a note is playing does not restart
         /// the envelope.
         public func setLegato(_ flag: Bool) {
-            Envelope.api.setLegato.unsafelyUnwrapped(pointer, flag ? 1 : 0)
+            Envelope.api.pointee.setLegato.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
         /// When `true`, a new note restarts the envelope from zero instead of
         /// its current value.
         public func setRetrigger(_ flag: Bool) {
-            Envelope.api.setRetrigger.unsafelyUnwrapped(pointer, flag ? 1 : 0)
+            Envelope.api.pointee.setRetrigger.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
         /// Bends the envelope's segments: 0 is linear, 1 is maximum curvature.
         public func setCurvature(_ amount: Float) {
-            Envelope.api.setCurvature.unsafelyUnwrapped(pointer, amount)
+            Envelope.api.pointee.setCurvature.unsafelyUnwrapped(pointer, amount)
         }
 
         /// How much note velocity scales the envelope's output.
         public func setVelocitySensitivity(_ sensitivity: Float) {
-            Envelope.api.setVelocitySensitivity.unsafelyUnwrapped(pointer, sensitivity)
+            Envelope.api.pointee.setVelocitySensitivity.unsafelyUnwrapped(pointer, sensitivity)
         }
 
         /// Scales the envelope's rate by note: notes above `start` play the
         /// envelope faster (up to `scaling` at `end` and beyond).
         public func setRateScaling(_ scaling: Float, start: MIDINote, end: MIDINote) {
-            Envelope.api.setRateScaling.unsafelyUnwrapped(pointer, scaling, start, end)
+            Envelope.api.pointee.setRateScaling.unsafelyUnwrapped(pointer, scaling, start, end)
         }
 
         public var value: Float {
-            Envelope.api.getValue.unsafelyUnwrapped(pointer)
+            Envelope.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }
     }
 
@@ -305,10 +305,10 @@ extension Sound {
     /// A signal whose values are set on a sequence timeline. Wraps
     /// `ControlSignal`.
     public final class ControlSignal: SignalValue {
-        private static var api: playdate_control_signal { snd.controlsignal.pointee }
+        private static var api: UnsafePointer<playdate_control_signal> { snd.pointee.controlsignal.unsafelyUnwrapped }
 
         public init() {
-            let pointer = ControlSignal.api.newSignal.unsafelyUnwrapped()
+            let pointer = ControlSignal.api.pointee.newSignal.unsafelyUnwrapped()
             super.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
         }
 
@@ -318,28 +318,28 @@ extension Sound {
 
         deinit {
             if isOwned {
-                ControlSignal.api.freeSignal.unsafelyUnwrapped(pointer)
+                ControlSignal.api.pointee.freeSignal.unsafelyUnwrapped(pointer)
             }
         }
 
         public func clearEvents() {
-            ControlSignal.api.clearEvents.unsafelyUnwrapped(pointer)
+            ControlSignal.api.pointee.clearEvents.unsafelyUnwrapped(pointer)
         }
 
         /// Adds a value at `step` in the signal's timeline. If `interpolate`
         /// is `true`, the value ramps from the previous event.
         public func addEvent(step: Int, value: Float, interpolate: Bool = false) {
-            ControlSignal.api.addEvent.unsafelyUnwrapped(pointer, Int32(step), value,
+            ControlSignal.api.pointee.addEvent.unsafelyUnwrapped(pointer, Int32(step), value,
                                                          interpolate ? 1 : 0)
         }
 
         public func removeEvent(step: Int) {
-            ControlSignal.api.removeEvent.unsafelyUnwrapped(pointer, Int32(step))
+            ControlSignal.api.pointee.removeEvent.unsafelyUnwrapped(pointer, Int32(step))
         }
 
         /// The MIDI controller number for signals loaded from a MIDI file.
         public var midiControllerNumber: Int {
-            Int(ControlSignal.api.getMIDIControllerNumber.unsafelyUnwrapped(pointer))
+            Int(ControlSignal.api.pointee.getMIDIControllerNumber.unsafelyUnwrapped(pointer))
         }
     }
 }

@@ -24,14 +24,34 @@ extension String {
         self.init(playdateCString: pointer)
     }
 
-    /// Calls `body` with a temporary null-terminated UTF-8 copy of the string.
+    /// Calls `body` with a temporary null-terminated UTF-8 copy of the
+    /// string. The copy lives on the stack for short strings, so calling
+    /// this in the update loop does not churn the heap.
     func withPlaydateCString<Result>(_ body: (UnsafePointer<CChar>) -> Result) -> Result {
-        var utf8 = ContiguousArray(self.utf8)
-        utf8.append(0)
-        return utf8.withUnsafeBufferPointer { buffer in
-            buffer.withMemoryRebound(to: CChar.self) { rebound in
-                body(rebound.baseAddress.unsafelyUnwrapped)
+        let count = utf8.count
+        return withUnsafeTemporaryAllocation(of: CChar.self, capacity: count + 1) { buffer in
+            var index = 0
+            for byte in utf8 {
+                buffer[index] = CChar(bitPattern: byte)
+                index += 1
             }
+            buffer[count] = 0
+            return body(buffer.baseAddress.unsafelyUnwrapped)
+        }
+    }
+
+    /// Calls `body` with a temporary buffer of the string's UTF-8 bytes (not
+    /// null-terminated) and its length, for the `(const void*, size_t)` text
+    /// APIs. Stack-allocated for short strings.
+    func withPlaydateUTF8<Result>(_ body: (UnsafeRawPointer, Int) -> Result) -> Result {
+        let count = utf8.count
+        return withUnsafeTemporaryAllocation(of: UInt8.self, capacity: count + 1) { buffer in
+            var index = 0
+            for byte in utf8 {
+                buffer[index] = byte
+                index += 1
+            }
+            return body(UnsafeRawPointer(buffer.baseAddress.unsafelyUnwrapped), count)
         }
     }
 

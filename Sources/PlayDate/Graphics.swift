@@ -10,7 +10,7 @@ internal import CPlaydate
 /// The graphics API: drawing, bitmaps, fonts, tilemaps, and video.
 public enum Graphics {}
 
-var gfx: playdate_graphics { Playdate.api.graphics.pointee }
+var gfx: UnsafePointer<playdate_graphics> { Playdate.graphicsAPI }
 
 extension Graphics {
     // MARK: - Screen constants
@@ -185,100 +185,100 @@ extension Graphics {
 
     /// Clears the entire display, filling it with `color`.
     public static func clear(color: Color = .white) {
-        color.withLCDColor { gfx.clear.unsafelyUnwrapped($0) }
+        color.withLCDColor { gfx.pointee.clear.unsafelyUnwrapped($0) }
     }
 
     /// Sets the background color shown when the display is offset or for
     /// clear pixels in drawn images.
     public static func setBackgroundColor(_ color: SolidColor) {
-        gfx.setBackgroundColor.unsafelyUnwrapped(color.cValue)
+        gfx.pointee.setBackgroundColor.unsafelyUnwrapped(color.cValue)
     }
 
     /// Sets the mode that determines how source pixels combine with the
     /// destination. Returns the previous mode.
     @discardableResult
     public static func setDrawMode(_ mode: DrawMode) -> DrawMode {
-        DrawMode(gfx.setDrawMode.unsafelyUnwrapped(mode.cValue))
+        DrawMode(gfx.pointee.setDrawMode.unsafelyUnwrapped(mode.cValue))
     }
 
     /// Offsets all subsequent drawing by (dx, dy).
     public static func setDrawOffset(dx: Int, dy: Int) {
-        gfx.setDrawOffset.unsafelyUnwrapped(Int32(dx), Int32(dy))
+        gfx.pointee.setDrawOffset.unsafelyUnwrapped(Int32(dx), Int32(dy))
     }
 
     /// Sets the clip rect in world coordinates (affected by the draw offset).
     public static func setClipRect(x: Int, y: Int, width: Int, height: Int) {
-        gfx.setClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
+        gfx.pointee.setClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
     }
 
     /// Sets the clip rect in screen coordinates (unaffected by the draw offset).
     public static func setScreenClipRect(x: Int, y: Int, width: Int, height: Int) {
-        gfx.setScreenClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
+        gfx.pointee.setScreenClipRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height))
     }
 
     public static func clearClipRect() {
-        gfx.clearClipRect.unsafelyUnwrapped()
+        gfx.pointee.clearClipRect.unsafelyUnwrapped()
     }
 
     public static func setLineCapStyle(_ style: LineCapStyle) {
-        gfx.setLineCapStyle.unsafelyUnwrapped(style.cValue)
+        gfx.pointee.setLineCapStyle.unsafelyUnwrapped(style.cValue)
     }
 
     /// Sets the stencil applied to subsequent drawing. If `tile` is `true`
     /// the stencil image is tiled, and its width must be a multiple of 32.
     /// Pass `nil` to clear the stencil.
     public static func setStencil(_ image: Bitmap?, tile: Bool = false) {
-        gfx.setStencilImage.unsafelyUnwrapped(image?.pointer, tile ? 1 : 0)
+        gfx.pointee.setStencilImage.unsafelyUnwrapped(image?.pointer, tile ? 1 : 0)
     }
 
     /// Pushes a new drawing context targeting `target`, or the display if
     /// `target` is `nil`.
     public static func pushContext(_ target: Bitmap? = nil) {
-        gfx.pushContext.unsafelyUnwrapped(target?.pointer)
+        gfx.pointee.pushContext.unsafelyUnwrapped(target?.pointer)
     }
 
     public static func popContext() {
-        gfx.popContext.unsafelyUnwrapped()
+        gfx.pointee.popContext.unsafelyUnwrapped()
     }
 
     // MARK: - Shapes
 
     public static func drawLine(x1: Int, y1: Int, x2: Int, y2: Int, width: Int, color: Color) {
         color.withLCDColor {
-            gfx.drawLine.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2), Int32(width), $0)
+            gfx.pointee.drawLine.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2), Int32(width), $0)
         }
     }
 
     public static func fillTriangle(x1: Int, y1: Int, x2: Int, y2: Int, x3: Int, y3: Int, color: Color) {
         color.withLCDColor {
-            gfx.fillTriangle.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2),
+            gfx.pointee.fillTriangle.unsafelyUnwrapped(Int32(x1), Int32(y1), Int32(x2), Int32(y2),
                                                Int32(x3), Int32(y3), $0)
         }
     }
 
     public static func drawRect(x: Int, y: Int, width: Int, height: Int, color: Color) {
         color.withLCDColor {
-            gfx.drawRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
+            gfx.pointee.drawRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
         }
     }
 
     public static func fillRect(x: Int, y: Int, width: Int, height: Int, color: Color) {
         color.withLCDColor {
-            gfx.fillRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
+            gfx.pointee.fillRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height), $0)
         }
     }
 
     public static func drawRoundRect(x: Int, y: Int, width: Int, height: Int, radius: Int,
                                      lineWidth: Int, color: Color) {
         color.withLCDColor {
-            gfx.drawRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
+            gfx.pointee.drawRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                                 Int32(radius), Int32(lineWidth), $0)
         }
     }
 
     public static func fillRoundRect(x: Int, y: Int, width: Int, height: Int, radius: Int, color: Color) {
         color.withLCDColor {
-            gfx.fillRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
+            gfx.pointee.fillRoundRect.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                                 Int32(radius), $0)
         }
     }
@@ -288,7 +288,7 @@ extension Graphics {
     public static func drawEllipse(x: Int, y: Int, width: Int, height: Int, lineWidth: Int,
                                    startAngle: Float = 0, endAngle: Float = 0, color: Color) {
         color.withLCDColor {
-            gfx.drawEllipse.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
+            gfx.pointee.drawEllipse.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                               Int32(lineWidth), startAngle, endAngle, $0)
         }
     }
@@ -296,7 +296,7 @@ extension Graphics {
     public static func fillEllipse(x: Int, y: Int, width: Int, height: Int,
                                    startAngle: Float = 0, endAngle: Float = 0, color: Color) {
         color.withLCDColor {
-            gfx.fillEllipse.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
+            gfx.pointee.fillEllipse.unsafelyUnwrapped(Int32(x), Int32(y), Int32(width), Int32(height),
                                               startAngle, endAngle, $0)
         }
     }
@@ -313,7 +313,7 @@ extension Graphics {
         }
         color.withLCDColor { cColor in
             coordinates.withUnsafeMutableBufferPointer { buffer in
-                gfx.fillPolygon.unsafelyUnwrapped(Int32(points.count), buffer.baseAddress,
+                gfx.pointee.fillPolygon.unsafelyUnwrapped(Int32(points.count), buffer.baseAddress,
                                                   cColor, fillRule.cValue)
             }
         }
@@ -321,13 +321,13 @@ extension Graphics {
 
     /// Sets the pixel at (x, y) in the current drawing context.
     public static func setPixel(x: Int, y: Int, color: Color) {
-        color.withLCDColor { gfx.setPixel.unsafelyUnwrapped(Int32(x), Int32(y), $0) }
+        color.withLCDColor { gfx.pointee.setPixel.unsafelyUnwrapped(Int32(x), Int32(y), $0) }
     }
 
     /// Reads an 8×8 pattern from the bitmap starting at (x, y).
     public static func colorToPattern(from bitmap: Bitmap, x: Int, y: Int) -> Pattern {
         var color: LCDColor = 0
-        gfx.setColorToPattern.unsafelyUnwrapped(&color, bitmap.pointer, Int32(x), Int32(y))
+        gfx.pointee.setColorToPattern.unsafelyUnwrapped(&color, bitmap.pointer, Int32(x), Int32(y))
         var pattern = Pattern(bytes: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
         if let source = UnsafeRawPointer(bitPattern: UInt(color)) {
             withUnsafeMutableBytes(of: &pattern.bytes) { destination in
@@ -342,41 +342,39 @@ extension Graphics {
     /// Draws `text` at (x, y) using the current font. Returns the drawn width.
     @discardableResult
     public static func drawText(_ text: String, x: Int, y: Int) -> Int {
-        let utf8 = ContiguousArray(text.utf8)
-        return utf8.withUnsafeBufferPointer { buffer in
-            Int(gfx.drawText.unsafelyUnwrapped(buffer.baseAddress, buffer.count,
-                                               kUTF8Encoding, Int32(x), Int32(y)))
+        text.withPlaydateUTF8 { bytes, count in
+            Int(gfx.pointee.drawText.unsafelyUnwrapped(bytes, count,
+                                                       kUTF8Encoding, Int32(x), Int32(y)))
         }
     }
 
     /// Draws `text` wrapped and aligned inside the given rectangle.
     public static func drawText(_ text: String, x: Int, y: Int, width: Int, height: Int,
                                 wrap: TextWrappingMode = .word, align: TextAlignment = .left) {
-        let utf8 = ContiguousArray(text.utf8)
-        utf8.withUnsafeBufferPointer { buffer in
-            gfx.drawTextInRect.unsafelyUnwrapped(buffer.baseAddress, buffer.count, kUTF8Encoding,
-                                                 Int32(x), Int32(y), Int32(width), Int32(height),
-                                                 wrap.cValue, align.cValue)
+        text.withPlaydateUTF8 { bytes, count in
+            gfx.pointee.drawTextInRect.unsafelyUnwrapped(bytes, count, kUTF8Encoding,
+                                                         Int32(x), Int32(y), Int32(width), Int32(height),
+                                                         wrap.cValue, align.cValue)
         }
     }
 
     /// Sets the font used by subsequent text drawing.
     public static func setFont(_ font: Font) {
-        gfx.setFont.unsafelyUnwrapped(font.pointer)
+        gfx.pointee.setFont.unsafelyUnwrapped(font.pointer)
     }
 
     /// Extra space added between letters, in pixels.
     public static func setTextTracking(_ tracking: Int) {
-        gfx.setTextTracking.unsafelyUnwrapped(Int32(tracking))
+        gfx.pointee.setTextTracking.unsafelyUnwrapped(Int32(tracking))
     }
 
     public static var textTracking: Int {
-        Int(gfx.getTextTracking.unsafelyUnwrapped())
+        Int(gfx.pointee.getTextTracking.unsafelyUnwrapped())
     }
 
     /// Adjusts the line height used when drawing multi-line text.
     public static func setTextLeading(_ lineHeightAdjustment: Int) {
-        gfx.setTextLeading.unsafelyUnwrapped(Int32(lineHeightAdjustment))
+        gfx.pointee.setTextLeading.unsafelyUnwrapped(Int32(lineHeightAdjustment))
     }
 
     // MARK: - Framebuffer
@@ -384,42 +382,42 @@ extension Graphics {
     /// The current working framebuffer. Rows are `rowSize` bytes.
     /// Call `markUpdatedRows(from:to:)` after writing directly.
     public static var frame: UnsafeMutablePointer<UInt8>? {
-        gfx.getFrame.unsafelyUnwrapped()
+        gfx.pointee.getFrame.unsafelyUnwrapped()
     }
 
     /// The framebuffer currently shown on the display. Rows are `rowSize` bytes.
     public static var displayFrame: UnsafeMutablePointer<UInt8>? {
-        gfx.getDisplayFrame.unsafelyUnwrapped()
+        gfx.pointee.getDisplayFrame.unsafelyUnwrapped()
     }
 
     /// A bitmap view of the display framebuffer. Simulator only; `nil` on device.
     public static var debugBitmap: Bitmap? {
-        guard let getDebugBitmap = gfx.getDebugBitmap,
+        guard let getDebugBitmap = gfx.pointee.getDebugBitmap,
               let pointer = getDebugBitmap() else { return nil }
         return Bitmap(pointer: pointer, isOwned: false)
     }
 
     /// A bitmap referencing the display framebuffer (not a copy).
     public static var displayBufferBitmap: Bitmap? {
-        guard let pointer = gfx.getDisplayBufferBitmap.unsafelyUnwrapped() else { return nil }
+        guard let pointer = gfx.pointee.getDisplayBufferBitmap.unsafelyUnwrapped() else { return nil }
         return Bitmap(pointer: pointer, isOwned: false)
     }
 
     /// A copy of the working framebuffer as a new bitmap.
     public static func copyFrameBufferBitmap() -> Bitmap? {
-        guard let pointer = gfx.copyFrameBufferBitmap.unsafelyUnwrapped() else { return nil }
+        guard let pointer = gfx.pointee.copyFrameBufferBitmap.unsafelyUnwrapped() else { return nil }
         return Bitmap(pointer: pointer, isOwned: true)
     }
 
     /// Tells the system which rows (inclusive) were changed by direct
     /// framebuffer writes and need redisplay.
     public static func markUpdatedRows(from start: Int, to end: Int) {
-        gfx.markUpdatedRows.unsafelyUnwrapped(Int32(start), Int32(end))
+        gfx.pointee.markUpdatedRows.unsafelyUnwrapped(Int32(start), Int32(end))
     }
 
     /// Manually flushes the framebuffer to the display. Only needed when
     /// drawing outside the normal update cycle.
     public static func display() {
-        gfx.display.unsafelyUnwrapped()
+        gfx.pointee.display.unsafelyUnwrapped()
     }
 }

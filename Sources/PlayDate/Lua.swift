@@ -9,7 +9,7 @@
 
 public import CPlaydate
 
-private var luaAPI: playdate_lua { Playdate.api.lua.pointee }
+private var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI }
 
 /// The Lua bridge: registering C functions and classes, and exchanging
 /// values with Lua code.
@@ -59,7 +59,7 @@ extension Lua {
     public static func addFunction(_ function: CFunction, name: String) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
         let ok = name.withPlaydateCString {
-            luaAPI.addFunction.unsafelyUnwrapped(function, $0, &error) != 0
+            luaAPI.pointee.addFunction.unsafelyUnwrapped(function, $0, &error) != 0
         }
         if !ok { throw PlaydateError(cString: error) }
     }
@@ -101,7 +101,7 @@ extension Lua {
 
         var error: UnsafePointer<CChar>?
         let ok = name.withPlaydateCString {
-            luaAPI.registerClass.unsafelyUnwrapped($0, registrationsBuffer,
+            luaAPI.pointee.registerClass.unsafelyUnwrapped($0, registrationsBuffer,
                                                    values.isEmpty ? nil : constantsBuffer,
                                                    isStatic ? 1 : 0, &error) != 0
         }
@@ -110,64 +110,64 @@ extension Lua {
 
     /// Pushes a function onto the stack, e.g. for `setUserValue`.
     public static func pushFunction(_ function: CFunction) {
-        luaAPI.pushFunction.unsafelyUnwrapped(function)
+        luaAPI.pointee.pushFunction.unsafelyUnwrapped(function)
     }
 
     /// From a class's `__index` callback: looks up the key in the instance
     /// metatable first. Returns 1 if a value was found.
     public static func indexMetatable() -> Bool {
-        luaAPI.indexMetatable.unsafelyUnwrapped() != 0
+        luaAPI.pointee.indexMetatable.unsafelyUnwrapped() != 0
     }
 
     /// Pauses the Lua runtime.
     public static func stop() {
-        luaAPI.stop.unsafelyUnwrapped()
+        luaAPI.pointee.stop.unsafelyUnwrapped()
     }
 
     /// Resumes the Lua runtime.
     public static func start() {
-        luaAPI.start.unsafelyUnwrapped()
+        luaAPI.pointee.start.unsafelyUnwrapped()
     }
 
     // MARK: - Arguments
 
     /// The number of arguments the Lua caller passed. Positions are 1-based.
     public static var argumentCount: Int {
-        Int(luaAPI.getArgCount.unsafelyUnwrapped())
+        Int(luaAPI.pointee.getArgCount.unsafelyUnwrapped())
     }
 
     /// The type of the argument at 1-based `position`; for objects, also the
     /// class name.
     public static func argumentType(at position: Int) -> (kind: Kind, className: String?) {
         var className: UnsafePointer<CChar>?
-        let type = luaAPI.getArgType.unsafelyUnwrapped(Int32(position), &className)
+        let type = luaAPI.pointee.getArgType.unsafelyUnwrapped(Int32(position), &className)
         return (Kind(type), String(playdateCString: className))
     }
 
     public static func argumentIsNil(at position: Int) -> Bool {
-        luaAPI.argIsNil.unsafelyUnwrapped(Int32(position)) != 0
+        luaAPI.pointee.argIsNil.unsafelyUnwrapped(Int32(position)) != 0
     }
 
     public static func boolArgument(at position: Int) -> Bool {
-        luaAPI.getArgBool.unsafelyUnwrapped(Int32(position)) != 0
+        luaAPI.pointee.getArgBool.unsafelyUnwrapped(Int32(position)) != 0
     }
 
     public static func intArgument(at position: Int) -> Int {
-        Int(luaAPI.getArgInt.unsafelyUnwrapped(Int32(position)))
+        Int(luaAPI.pointee.getArgInt.unsafelyUnwrapped(Int32(position)))
     }
 
     public static func floatArgument(at position: Int) -> Float {
-        luaAPI.getArgFloat.unsafelyUnwrapped(Int32(position))
+        luaAPI.pointee.getArgFloat.unsafelyUnwrapped(Int32(position))
     }
 
     public static func stringArgument(at position: Int) -> String? {
-        String(playdateCString: luaAPI.getArgString.unsafelyUnwrapped(Int32(position)))
+        String(playdateCString: luaAPI.pointee.getArgString.unsafelyUnwrapped(Int32(position)))
     }
 
     /// The argument as raw bytes (which may contain embedded zeros).
     public static func bytesArgument(at position: Int) -> [UInt8]? {
         var length = 0
-        guard let bytes = luaAPI.getArgBytes.unsafelyUnwrapped(Int32(position), &length) else {
+        guard let bytes = luaAPI.pointee.getArgBytes.unsafelyUnwrapped(Int32(position), &length) else {
             return nil
         }
         let buffer = UnsafeRawBufferPointer(start: bytes, count: length)
@@ -181,58 +181,58 @@ extension Lua {
         let cType = type.copiedPlaydateCString()
         defer { cType.deallocate() }
         var userdataObject: OpaquePointer?
-        let object = luaAPI.getArgObject.unsafelyUnwrapped(Int32(position), cType, &userdataObject)
+        let object = luaAPI.pointee.getArgObject.unsafelyUnwrapped(Int32(position), cType, &userdataObject)
         return (object, userdataObject.map { UDObject(pointer: $0) })
     }
 
     /// The argument as a bitmap. References an object owned by Lua; retain
     /// the Lua value while using it.
     public static func bitmapArgument(at position: Int) -> Graphics.Bitmap? {
-        guard let bitmap = luaAPI.getBitmap.unsafelyUnwrapped(Int32(position)) else { return nil }
+        guard let bitmap = luaAPI.pointee.getBitmap.unsafelyUnwrapped(Int32(position)) else { return nil }
         return Graphics.Bitmap(pointer: bitmap, isOwned: false)
     }
 
     /// The argument as a sprite.
     public static func spriteArgument(at position: Int) -> Sprite? {
-        guard let sprite = luaAPI.getSprite.unsafelyUnwrapped(Int32(position)) else { return nil }
+        guard let sprite = luaAPI.pointee.getSprite.unsafelyUnwrapped(Int32(position)) else { return nil }
         return Sprite.wrapper(for: sprite)
     }
 
     // MARK: - Return values
 
     public static func pushNil() {
-        luaAPI.pushNil.unsafelyUnwrapped()
+        luaAPI.pointee.pushNil.unsafelyUnwrapped()
     }
 
     public static func push(_ value: Bool) {
-        luaAPI.pushBool.unsafelyUnwrapped(value ? 1 : 0)
+        luaAPI.pointee.pushBool.unsafelyUnwrapped(value ? 1 : 0)
     }
 
     public static func push(_ value: Int) {
-        luaAPI.pushInt.unsafelyUnwrapped(Int32(value))
+        luaAPI.pointee.pushInt.unsafelyUnwrapped(Int32(value))
     }
 
     public static func push(_ value: Float) {
-        luaAPI.pushFloat.unsafelyUnwrapped(value)
+        luaAPI.pointee.pushFloat.unsafelyUnwrapped(value)
     }
 
     public static func push(_ value: String) {
-        value.withPlaydateCString { luaAPI.pushString.unsafelyUnwrapped($0) }
+        value.withPlaydateCString { luaAPI.pointee.pushString.unsafelyUnwrapped($0) }
     }
 
     public static func push(bytes: [UInt8]) {
         bytes.withUnsafeBytes { buffer in
-            luaAPI.pushBytes.unsafelyUnwrapped(
+            luaAPI.pointee.pushBytes.unsafelyUnwrapped(
                 buffer.baseAddress?.assumingMemoryBound(to: CChar.self), buffer.count)
         }
     }
 
     public static func push(_ bitmap: Graphics.Bitmap) {
-        luaAPI.pushBitmap.unsafelyUnwrapped(bitmap.pointer)
+        luaAPI.pointee.pushBitmap.unsafelyUnwrapped(bitmap.pointer)
     }
 
     public static func push(_ sprite: Sprite) {
-        luaAPI.pushSprite.unsafelyUnwrapped(sprite.pointer)
+        luaAPI.pointee.pushSprite.unsafelyUnwrapped(sprite.pointer)
     }
 
     /// Wraps `object` in a Lua instance of class `type` and pushes it, with
@@ -242,7 +242,7 @@ extension Lua {
                                   valueCount: Int = 0) -> UDObject? {
         let cType = type.copiedPlaydateCString()
         defer { cType.deallocate() }
-        guard let pointer = luaAPI.pushObject.unsafelyUnwrapped(object, cType, Int32(valueCount)) else {
+        guard let pointer = luaAPI.pointee.pushObject.unsafelyUnwrapped(object, cType, Int32(valueCount)) else {
             return nil
         }
         return UDObject(pointer: pointer)
@@ -255,24 +255,24 @@ extension Lua {
         /// Prevents the object from being garbage-collected until `release()`.
         @discardableResult
         public func retain() -> UDObject {
-            UDObject(pointer: luaAPI.retainObject.unsafelyUnwrapped(pointer).unsafelyUnwrapped)
+            UDObject(pointer: luaAPI.pointee.retainObject.unsafelyUnwrapped(pointer).unsafelyUnwrapped)
         }
 
         public func release() {
-            luaAPI.releaseObject.unsafelyUnwrapped(pointer)
+            luaAPI.pointee.releaseObject.unsafelyUnwrapped(pointer)
         }
 
         /// Pops the value on top of the stack and stores it in the object's
         /// user-value `slot` (1-based).
         public func setUserValue(slot: UInt32) {
-            luaAPI.setUserValue.unsafelyUnwrapped(pointer, slot)
+            luaAPI.pointee.setUserValue.unsafelyUnwrapped(pointer, slot)
         }
 
         /// Pushes the value in user-value `slot` onto the stack and returns
         /// its stack position, or `nil` if there is none.
         @discardableResult
         public func getUserValue(slot: UInt32) -> Int? {
-            let position = luaAPI.getUserValue.unsafelyUnwrapped(pointer, slot)
+            let position = luaAPI.pointee.getUserValue.unsafelyUnwrapped(pointer, slot)
             return position == 0 ? nil : Int(position)
         }
     }
@@ -284,7 +284,7 @@ extension Lua {
     public static func callFunction(_ name: String, argumentCount: Int = 0) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
         let ok = name.withPlaydateCString {
-            luaAPI.callFunction.unsafelyUnwrapped($0, Int32(argumentCount), &error) != 0
+            luaAPI.pointee.callFunction.unsafelyUnwrapped($0, Int32(argumentCount), &error) != 0
         }
         if !ok { throw PlaydateError(cString: error) }
     }
