@@ -4,7 +4,7 @@ extension JSON {
     /// A streaming JSON encoder writing into a string. Wraps `json_encoder`.
     public final class Encoder {
         private final class Output {
-            var text = ""
+            var bytes: [UInt8] = []
         }
 
         private var encoder = json_encoder()
@@ -14,13 +14,12 @@ extension JSON {
             jsonAPI.pointee.initEncoder.unsafelyUnwrapped(&encoder, { userdata, string, length in
                 guard let userdata, let string else { return }
                 let output = Unmanaged<Output>.fromOpaque(userdata).takeUnretainedValue()
-                let bytes = UnsafeRawBufferPointer(start: string, count: Int(length))
-                output.text += String(decoding: bytes, as: UTF8.self)
+                output.bytes.append(contentsOf: UnsafeRawBufferPointer(start: string, count: Int(length)))
             }, Unmanaged.passUnretained(output).toOpaque(), pretty ? 1 : 0)
         }
 
         /// The JSON produced so far.
-        public var json: String { output.text }
+        public var json: String { String(decoding: output.bytes, as: UTF8.self) }
 
         /// Starts a JSON array.
         public func startArray() {
@@ -44,9 +43,10 @@ extension JSON {
 
         /// Call before writing each table value.
         public func addTableMember(name: String) {
-            name.withPlaydateCString { cName in
+            name.withPlaydateUTF8 { bytes, count in
                 withUnsafeMutablePointer(to: &encoder) {
-                    $0.pointee.addTableMember.unsafelyUnwrapped($0, cName, Int32(name.utf8.count))
+                    $0.pointee.addTableMember.unsafelyUnwrapped(
+                        $0, bytes.assumingMemoryBound(to: CChar.self), Int32(count))
                 }
             }
         }
@@ -80,9 +80,10 @@ extension JSON {
 
         /// Writes a string value.
         public func writeString(_ value: String) {
-            value.withPlaydateCString { cString in
+            value.withPlaydateUTF8 { bytes, count in
                 withUnsafeMutablePointer(to: &encoder) {
-                    $0.pointee.writeString.unsafelyUnwrapped($0, cString, Int32(value.utf8.count))
+                    $0.pointee.writeString.unsafelyUnwrapped(
+                        $0, bytes.assumingMemoryBound(to: CChar.self), Int32(count))
                 }
             }
         }

@@ -348,5 +348,35 @@ enum Mock {
                                          data: .init(tableval: root))
             return 1
         }
+
+        // A simplified encoder: each call emits its JSON fragment verbatim,
+        // without the real OS's separator and pretty-printing logic.
+        jsonAPI.pointee.initEncoder = { encoder, write, userdata, _ in
+            Mock.record("initEncoder")
+            guard let encoder else { return }
+            encoder.pointee.writeStringFunc = write
+            encoder.pointee.userdata = userdata
+            encoder.pointee.startTable = { Mock.emitJSON($0, "{") }
+            encoder.pointee.endTable = { Mock.emitJSON($0, "}") }
+            encoder.pointee.startArray = { Mock.emitJSON($0, "[") }
+            encoder.pointee.endArray = { Mock.emitJSON($0, "]") }
+            encoder.pointee.addTableMember = { encoder, name, length in
+                guard let name else { return }
+                let bytes = UnsafeRawBufferPointer(start: name, count: Int(length))
+                Mock.emitJSON(encoder, "\"\(String(decoding: bytes, as: UTF8.self))\":")
+            }
+            encoder.pointee.addArrayMember = { Mock.emitJSON($0, ",") }
+            encoder.pointee.writeInt = { Mock.emitJSON($0, "\($1)") }
+            encoder.pointee.writeString = { encoder, string, length in
+                guard let string else { return }
+                let bytes = UnsafeRawBufferPointer(start: string, count: Int(length))
+                Mock.emitJSON(encoder, "\"\(String(decoding: bytes, as: UTF8.self))\"")
+            }
+        }
+    }
+
+    private static func emitJSON(_ encoder: UnsafeMutablePointer<json_encoder>?, _ text: String) {
+        guard let encoder, let write = encoder.pointee.writeStringFunc else { return }
+        text.withCString { write(encoder.pointee.userdata, $0, Int32(text.utf8.count)) }
     }
 }

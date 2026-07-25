@@ -224,4 +224,18 @@ struct WrapperTests {
             return
         }
     }
+
+    @Test func jsonEncoderAccumulatesOutput() {
+        let encoder = JSON.Encoder()
+        encoder.startTable()
+        encoder.addTableMember(name: "level")
+        encoder.writeInt(3)
+        encoder.addTableMember(name: "name")
+        encoder.writeString("Röck")
+        encoder.endTable()
+
+        // The mock emits fragments verbatim, with no separators between
+        // members; "Röck" exercises multi-byte UTF-8 through the byte buffer.
+        #expect(encoder.json == "{\"level\":3\"name\":\"Röck\"}")
+    }
 }
