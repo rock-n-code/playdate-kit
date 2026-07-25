@@ -11,8 +11,10 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // Documentation generation only; not linked into the library.
-        .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.0"),
+        .package(
+            url: "https://github.com/swiftlang/swift-docc-plugin",
+            from: "1.4.0"
+        ),
     ],
     targets: [
         // The Playdate C API headers, resolved through the "playdate"
