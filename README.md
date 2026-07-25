@@ -314,6 +314,22 @@ SWIFT_BIN=~/Library/Developer/Toolchains/swift-DEVELOPMENT-SNAPSHOT-<date>.xctoo
     Scripts/build-embedded.sh
 ```
 
+## Make targets
+
+A root Makefile fronts the development lifecycle; a bare `make` (or `make help`) lists the targets. `build`, `test`, `docs`, and `consumer-test` need only Xcode's toolchain (after the one-time `make setup`); `embedded` and the example targets additionally need the device toolchains above — `embedded` picks up a snapshot toolchain installed at `~/Library/Developer/Toolchains` automatically, or takes `SWIFT_BIN=<path to swift>`.
+
+| Target | Effect |
+|---|---|
+| `make setup` | One-time: point the `playdate` pkg-config module at the SDK |
+| `make build` / `make test` | Build the bindings for the host / run the unit tests |
+| `make outdated` / `make upgrade` | Show / apply updates to the SwiftPM dependencies |
+| `make embedded` | Compile-only device check (Embedded Swift, `armv7em-none-none-eabi`) |
+| `make consumer-test` | Build and run a scratch package depending on play-date |
+| `make check` | Everything CI runs: build, test, embedded, consumer-test |
+| `make docs` / `make docs-preview` | Generate / preview the DocC documentation |
+| `make example` / `make example-run` | Build the HelloPlaydate example / open it in the Playdate Simulator |
+| `make clean` | Remove build products of the package and the example |
+
 ## Example
 
 [`Examples/HelloPlaydate`](Examples/HelloPlaydate) is a complete minimal game — bouncing box, crank needle, button handling, a system menu item — that builds into a runnable `.pdx`:
