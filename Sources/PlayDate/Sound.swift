@@ -207,11 +207,13 @@ extension Sound {
         }
 
         /// The default channel, which sources are added to unless otherwise
-        /// specified.
-        public static var `default`: Channel {
+        /// specified. A single shared wrapper, so resources retained through
+        /// it (sources, effects, modulators) stay alive.
+        public static var `default`: Channel { defaultChannel }
+
+        nonisolated(unsafe) private static let defaultChannel =
             Channel(pointer: snd.pointee.getDefaultChannel.unsafelyUnwrapped().unsafelyUnwrapped,
                     isOwned: false)
-        }
 
         nonisolated(unsafe) private static var addedChannels: [Channel] = []
 
@@ -246,8 +248,12 @@ extension Sound {
         @discardableResult
         public func removeSource(_ source: Source) -> Bool {
             let removed = Channel.api.pointee.removeSource.unsafelyUnwrapped(pointer, source.pointer) != 0
-            retainedSources.removeAll { $0 === source }
-            CallbackSource.release(source)
+            // Only drop the retentions if the source was actually on this
+            // channel; otherwise another channel may still be pulling it.
+            if removed {
+                retainedSources.removeAll { $0 === source }
+                CallbackSource.release(source)
+            }
             return removed
         }
 
@@ -322,12 +328,21 @@ extension Sound {
         }
 
         /// The channel's output as a source, for feeding into another channel.
+        /// The same wrapper is returned on every access, so callbacks
+        /// registered on it stay valid for the channel's lifetime.
         public var outputAsSource: Source? {
             guard let source = Channel.api.pointee.getOutputAsSource.unsafelyUnwrapped(pointer) else {
                 return nil
             }
-            return Source(pointer: source, isOwned: false)
+            if let cached = cachedOutputSource, cached.pointer == source {
+                return cached
+            }
+            let wrapper = Source(pointer: source, isOwned: false)
+            cachedOutputSource = wrapper
+            return wrapper
         }
+
+        private var cachedOutputSource: Source?
 
         private func retain(_ modulator: SignalValue?) {
             if let modulator, !retainedModulators.contains(where: { $0 === modulator }) {

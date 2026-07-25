@@ -71,16 +71,17 @@ extension String {
 #if hasFeature(Embedded) && !os(macOS)
 /// The Embedded Swift runtime allocates through `posix_memalign(3)`, which
 /// the Playdate device C library does not provide. Memory comes from
-/// `malloc`, which the SDK's setup code routes to the firmware allocator;
-/// that allocator hands out sufficiently aligned blocks, so alignment is
-/// only asserted, not adjusted.
+/// `malloc`, which the SDK's setup code routes to the firmware allocator.
+/// The pointer is later released with plain `free`, so it cannot be offset
+/// to adjust alignment; the firmware allocator's natural alignment has to
+/// satisfy the request, which the precondition asserts.
 @_cdecl("posix_memalign")
 public func posix_memalign(
     _ memptr: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
     _ alignment: Int,
     _ size: Int
 ) -> CInt {
-    guard let allocation = malloc(size + alignment - 1) else { fatalError() }
+    guard let allocation = malloc(size) else { fatalError() }
     precondition(Int(bitPattern: allocation) % alignment == 0)
     memptr.pointee = allocation
     return 0

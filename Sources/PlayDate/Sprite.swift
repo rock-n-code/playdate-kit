@@ -55,7 +55,12 @@ public final class Sprite {
     init(pointer: OpaquePointer, isOwned: Bool) {
         self.pointer = pointer
         self.isOwned = isOwned
-        spriteAPI.pointee.setUserdata.unsafelyUnwrapped(pointer, Unmanaged.passUnretained(self).toOpaque())
+        // Transient wrappers for sprites created outside the binding must not
+        // store a back-reference: it would dangle once the wrapper is
+        // deallocated, and only owned wrappers clear it in `deinit`.
+        if isOwned {
+            spriteAPI.pointee.setUserdata.unsafelyUnwrapped(pointer, Unmanaged.passUnretained(self).toOpaque())
+        }
     }
 
     /// Allocates a new sprite.

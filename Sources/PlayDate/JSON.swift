@@ -116,6 +116,9 @@ extension JSON {
             }
         }
         guard ok else {
+            // A completed root container may already have been written to
+            // outval before the failure; consume it so its box is not leaked.
+            _ = convert(outval)
             throw decodeError(context)
         }
         return convert(outval)
@@ -145,6 +148,9 @@ extension JSON {
             }
         }
         guard ok else {
+            // A completed root container may already have been written to
+            // outval before the failure; consume it so its box is not leaked.
+            _ = convert(outval)
             throw decodeError(context)
         }
         return convert(outval)

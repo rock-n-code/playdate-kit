@@ -70,21 +70,21 @@ extension Network {
     }
 
     /// Turns the wifi radio on or off. The completion receives `nil` on
-    /// success.
+    /// success. Completions of overlapping calls are delivered in call order.
     public static func setEnabled(_ enabled: Bool, completion: ((NetError?) -> Void)? = nil) {
-        setEnabledCompletion = completion
-        if completion != nil {
+        if let completion {
+            setEnabledCompletions.append(completion)
             networkAPI.pointee.setEnabled.unsafelyUnwrapped(enabled, { error in
-                let completion = Network.setEnabledCompletion
-                Network.setEnabledCompletion = nil
-                completion?(Network.optionalError(error))
+                guard !Network.setEnabledCompletions.isEmpty else { return }
+                let completion = Network.setEnabledCompletions.removeFirst()
+                completion(Network.optionalError(error))
             })
         } else {
             networkAPI.pointee.setEnabled.unsafelyUnwrapped(enabled, nil)
         }
     }
 
-    nonisolated(unsafe) private static var setEnabledCompletion: ((NetError?) -> Void)?
+    nonisolated(unsafe) private static var setEnabledCompletions: [(NetError?) -> Void] = []
 
     /// Requests permission to connect to `server`. Shared by HTTP and TCP.
     fileprivate static func requestAccess(

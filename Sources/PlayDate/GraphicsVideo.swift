@@ -118,10 +118,19 @@ extension Graphics {
         }
 
         /// The player used for the stream's audio track. Owned by the stream.
+        /// The same wrapper is returned on every access, so callbacks
+        /// registered on it stay valid for the stream's lifetime.
         public var filePlayer: Sound.FilePlayer? {
             guard let player = streamAPI.pointee.getFilePlayer.unsafelyUnwrapped(pointer) else { return nil }
-            return Sound.FilePlayer(pointer: player, isOwned: false)
+            if let cached = cachedFilePlayer, cached.pointer == player {
+                return cached
+            }
+            let wrapper = Sound.FilePlayer(pointer: player, isOwned: false)
+            cachedFilePlayer = wrapper
+            return wrapper
         }
+
+        private var cachedFilePlayer: Sound.FilePlayer?
 
         /// The player used for the stream's video track. Owned by the stream.
         public var videoPlayer: VideoPlayer? {
