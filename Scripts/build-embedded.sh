@@ -53,4 +53,5 @@ exec "$swift_bin" build \
     -Xcc -I"$include_dir" \
     -Xcc -mcpu=cortex-m7 \
     -Xcc -mfloat-abi=hard \
-    -Xcc -mfpu=fpv5-sp-d16
+    -Xcc -mfpu=fpv5-sp-d16 \
+    -Xcc -fshort-enums

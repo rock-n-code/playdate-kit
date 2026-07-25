@@ -2,6 +2,7 @@
 .build/
 /Packages
 # Example build products
+Examples/*/build
 Examples/*/Source/pdex.dylib
 *.pdx
 xcuserdata/
