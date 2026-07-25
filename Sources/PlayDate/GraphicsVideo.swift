@@ -60,7 +60,10 @@ extension Graphics {
         /// Renders frame `frame` into the current context.
         public func renderFrame(_ frame: Int) throws(PlaydateError) {
             guard videoAPI.pointee.renderFrame.unsafelyUnwrapped(pointer, Int32(frame)) != 0 else {
-                throw PlaydateError(message: error ?? "unable to render frame \(frame)")
+                // Static message: the caller knows the frame it passed, and
+                // interpolating it would pull integer formatting machinery
+                // into the device binary.
+                throw PlaydateError(message: error ?? "unable to render frame")
             }
         }
 

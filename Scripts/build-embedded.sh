@@ -50,6 +50,7 @@ exec "$swift_bin" build \
     --triple armv7em-none-none-eabi \
     -Xswiftc -enable-experimental-feature -Xswiftc Embedded \
     -Xswiftc -wmo \
+    -Xswiftc -Osize \
     -Xcc -I"$include_dir" \
     -Xcc -mcpu=cortex-m7 \
     -Xcc -mfloat-abi=hard \

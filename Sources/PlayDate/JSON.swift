@@ -170,8 +170,10 @@ extension JSON {
         return try decode(file: file)
     }
 
+    // Static message: interpolating the line number would pull integer
+    // formatting machinery into every device binary that decodes JSON.
     private static func decodeError(_ context: DecodeContext) -> PlaydateError {
-        PlaydateError(message: "\(context.errorMessage ?? "JSON decode failed") (line \(context.errorLine))")
+        PlaydateError(message: context.errorMessage ?? "JSON decode failed")
     }
 
     // MARK: - Encoding

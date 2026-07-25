@@ -18,6 +18,21 @@ The script compiles the game as a dylib, places it in `Source/` next to
 
 ## Device builds
 
-Running on hardware requires the Embedded Swift + ARM toolchain pipeline
-(see the repository README and Apple's swift-playdate-examples for the
-Makefile setup). This example covers the simulator workflow only.
+The Makefile cross-compiles the game with Embedded Swift and packages a
+`HelloPlaydate.pdx` containing both the device binary and the simulator
+dylib. It needs:
+
+- the Playdate SDK (`PLAYDATE_SDK_PATH`, or the path in `~/.Playdate/config`),
+- the Arm GNU toolchain (`arm-none-eabi-gcc`) on `PATH`,
+- a swift.org development-snapshot toolchain (Xcode's toolchain does not
+  ship the Embedded Swift stdlib for the device target). A toolchain
+  installed at `~/Library/Developer/Toolchains` is picked up automatically;
+  otherwise pass `TOOLCHAINS=<bundle id>`.
+
+```sh
+make
+```
+
+Swift code is compiled with `-Osize` by default; use `make SWIFT_OPT=-O` to
+favor speed over size. Sideload the pdx from the Playdate Simulator
+(Device > Upload Game to Device) or with the SDK's `pdutil`.
