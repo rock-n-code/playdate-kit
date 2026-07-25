@@ -3,11 +3,15 @@ PRODUCT := HelloPlaydate.pdx
 include $(REPO_ROOT)/Examples/swift.mk
 
 # MARK: - Build PlaydateKit Wrapper Swift Module
-build/Modules/playdate_device.o: $(REPO_ROOT)/Sources/PlaydateKit/*.swift
+# The wrapper sources are organized in nested domain folders, so collect
+# them recursively (a plain *.swift glob would miss the subdirectories).
+PLAYDATEKIT_SOURCES := $(shell find $(REPO_ROOT)/Sources/PlaydateKit -name '*.swift')
+
+build/Modules/playdate_device.o: $(PLAYDATEKIT_SOURCES)
 	@mkdir -p build/Modules
 	$(SWIFT_EXEC) $(SWIFT_FLAGS) $(SWIFT_FLAGS_DEVICE) -c $^ -emit-module -o $@
 
-build/Modules/playdate_simulator.o: $(REPO_ROOT)/Sources/PlaydateKit/*.swift
+build/Modules/playdate_simulator.o: $(PLAYDATEKIT_SOURCES)
 	@mkdir -p build/Modules
 	$(SWIFT_EXEC) $(SWIFT_FLAGS) $(SWIFT_FLAGS_SIMULATOR) -c $^ -emit-module -o $@
 

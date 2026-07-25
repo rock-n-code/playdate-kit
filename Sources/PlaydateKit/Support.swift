@@ -1,12 +1,3 @@
-//
-//  Support.swift
-//  Internal helpers shared by the wrappers.
-//
-//  C-string conversions are implemented manually (rather than with
-//  `String(cString:)` / `withCString`) so the module stays within the
-//  Embedded Swift subset used for device builds.
-//
-
 internal import CPlaydate
 
 extension String {
