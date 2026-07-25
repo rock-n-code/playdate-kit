@@ -13,15 +13,20 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(path: "../.."),
+        // The explicit name overrides the identity a path dependency
+        // otherwise derives from the checkout directory's name.
+        .package(
+            name: "playdate-kit",
+            path: "../.."
+        ),
     ],
     targets: [
         .target(
             name: "HelloPlaydate",
             dependencies: [
                 .product(
-                    name: "PlayDate", 
-                    package: "play-date"
+                    name: "PlaydateKit",
+                    package: "playdate-kit"
                 )
             ]
         ),

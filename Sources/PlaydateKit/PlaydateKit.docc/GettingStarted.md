@@ -11,7 +11,7 @@ install an update callback:
 
 ```swift
 import CPlaydate
-import PlayDate
+import PlaydateKit
 
 @_cdecl("eventHandler")
 func eventHandler(

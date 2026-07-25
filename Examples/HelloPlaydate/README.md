@@ -1,6 +1,6 @@
 # Hello Playdate
 
-A minimal game built on the `play-date` bindings: a bouncing box, a crank-aimed needle, button handling, a system menu item, and an FPS counter.
+A minimal game built on the `playdate-kit` bindings: a bouncing box, a crank-aimed needle, button handling, a system menu item, and an FPS counter.
 
 ## Build and run (Playdate Simulator)
 

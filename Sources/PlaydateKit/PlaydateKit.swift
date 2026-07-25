@@ -1,5 +1,5 @@
 //
-//  PlayDate.swift
+//  PlaydateKit.swift
 //  Swift bindings to the Playdate C API.
 //
 //  The C API is delivered as a `PlaydateAPI` struct of function pointers that
@@ -11,7 +11,7 @@
 public import CPlaydate
 
 /// The raw C API bootstrap. Everything else in this module (System,
-/// Graphics, Sprite, Sound, ...) lives at the top level of the `PlayDate`
+/// Graphics, Sprite, Sound, ...) lives at the top level of the `PlaydateKit`
 /// module and requires `initialize(with:)` to have been called first.
 public enum Playdate {
     /// The raw C API. Populated by `initialize(with:)`.

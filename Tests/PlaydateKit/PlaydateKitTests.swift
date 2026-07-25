@@ -1,5 +1,5 @@
 import Testing
-@testable import PlayDate
+@testable import PlaydateKit
 
 // Most of the binding requires a running Playdate (the API struct is handed
 // to the game at launch), so these tests cover the pure value types and the

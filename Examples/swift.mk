@@ -82,13 +82,13 @@ SWIFT_FLAGS_DEVICE := \
 	$(addprefix -Xcc , $(C_FLAGS_DEVICE)) \
 	-target armv7em-none-none-eabi \
 	-Xfrontend -experimental-platform-c-calling-convention=arm_aapcs_vfp \
-	-module-alias PlayDate=playdate_device \
+	-module-alias PlaydateKit=playdate_device \
 
 C_FLAGS_SIMULATOR := \
 
 SWIFT_FLAGS_SIMULATOR := \
 	$(addprefix -Xcc , $(C_FLAGS_SIMULATOR)) \
-	-module-alias PlayDate=playdate_simulator \
+	-module-alias PlaydateKit=playdate_simulator \
 
 SIMCOMPILER += \
 	-nostdlib \

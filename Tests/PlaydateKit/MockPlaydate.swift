@@ -9,7 +9,7 @@
 //
 
 import CPlaydate
-@testable import PlayDate
+@testable import PlaydateKit
 
 enum Mock {
     // MARK: - Stable API allocations

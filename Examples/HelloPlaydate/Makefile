@@ -2,12 +2,12 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 PRODUCT := HelloPlaydate.pdx
 include $(REPO_ROOT)/Examples/swift.mk
 
-# MARK: - Build PlayDate Wrapper Swift Module
-build/Modules/playdate_device.o: $(REPO_ROOT)/Sources/PlayDate/*.swift
+# MARK: - Build PlaydateKit Wrapper Swift Module
+build/Modules/playdate_device.o: $(REPO_ROOT)/Sources/PlaydateKit/*.swift
 	@mkdir -p build/Modules
 	$(SWIFT_EXEC) $(SWIFT_FLAGS) $(SWIFT_FLAGS_DEVICE) -c $^ -emit-module -o $@
 
-build/Modules/playdate_simulator.o: $(REPO_ROOT)/Sources/PlayDate/*.swift
+build/Modules/playdate_simulator.o: $(REPO_ROOT)/Sources/PlaydateKit/*.swift
 	@mkdir -p build/Modules
 	$(SWIFT_EXEC) $(SWIFT_FLAGS) $(SWIFT_FLAGS_SIMULATOR) -c $^ -emit-module -o $@
 

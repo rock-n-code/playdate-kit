@@ -3,11 +3,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "play-date",
+    name: "playdate-kit",
     products: [
         .library(
-            name: "PlayDate",
-            targets: ["PlayDate"]
+            name: "PlaydateKit",
+            targets: ["PlaydateKit"]
         ),
     ],
     dependencies: [
@@ -26,17 +26,17 @@ let package = Package(
             pkgConfig: "playdate"
         ),
         .target(
-            name: "PlayDate",
+            name: "PlaydateKit",
             dependencies: ["CPlaydate"],
-            path: "Sources/PlayDate",
+            path: "Sources/PlaydateKit",
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
             ],
         ),
         .testTarget(
-            name: "PlayDateTests",
-            dependencies: ["PlayDate"],
-            path: "Tests/PlayDate",
+            name: "PlaydateKitTests",
+            dependencies: ["PlaydateKit"],
+            path: "Tests/PlaydateKit",
             swiftSettings: [
                 .enableUpcomingFeature("ApproachableConcurrency"),
             ],

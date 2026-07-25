@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Cross-compiles the PlayDate target for Playdate hardware (Embedded Swift,
+# Cross-compiles the PlaydateKit target for Playdate hardware (Embedded Swift,
 # ARM Cortex-M7) as a compile-only check that the bindings stay within the
 # Embedded Swift subset. Linking is left to game projects.
 #
@@ -46,7 +46,7 @@ echo "Using arm-none-eabi headers: $include_dir"
 # bare-metal ELF objects.
 exec "$swift_bin" build \
     --build-system native \
-    --target PlayDate \
+    --target PlaydateKit \
     --triple armv7em-none-none-eabi \
     -Xswiftc -enable-experimental-feature -Xswiftc Embedded \
     -Xswiftc -wmo \

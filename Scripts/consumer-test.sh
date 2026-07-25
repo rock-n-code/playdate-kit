@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Verifies the package works as a SwiftPM dependency: generates a scratch
-# executable package that depends on play-date, imports both modules, and
+# executable package that depends on playdate-kit, imports both modules, and
 # runs it. This guards the pkg-config setup — target settings that don't
 # propagate to consumers (or manifest validation failures) surface here,
 # not on this package's own build.
@@ -21,12 +21,14 @@ import PackageDescription
 let package = Package(
     name: "consumer",
     dependencies: [
-        .package(path: "$package_dir"),
+        // The explicit name overrides the identity a path dependency
+        // otherwise derives from the checkout directory's name.
+        .package(name: "playdate-kit", path: "$package_dir"),
     ],
     targets: [
         .executableTarget(
             name: "consumer",
-            dependencies: [.product(name: "PlayDate", package: "play-date")]
+            dependencies: [.product(name: "PlaydateKit", package: "playdate-kit")]
         ),
     ]
 )
@@ -34,7 +36,7 @@ EOF
 
 cat > "$scratch_dir/Sources/consumer/main.swift" <<'EOF'
 import CPlaydate
-import PlayDate
+import PlaydateKit
 
 // Touch a type from each module to prove both import and link.
 let event = SystemEvent(event: kEventInit, argument: 0)

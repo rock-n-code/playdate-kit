@@ -1,12 +1,12 @@
 //
 //  Game.swift
-//  A minimal Playdate game built on the play-date Swift bindings: a
+//  A minimal Playdate game built on the playdate-kit Swift bindings: a
 //  bouncing box, a crank-aimed needle, button logging, and a system menu
 //  item.
 //
 
 import CPlaydate
-import PlayDate
+import PlaydateKit
 
 @_cdecl("eventHandler")
 public func eventHandler(

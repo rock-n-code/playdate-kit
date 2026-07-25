@@ -1,4 +1,4 @@
-# ``PlayDate``
+# ``PlaydateKit``
 
 Swift bindings to the Playdate C API.
 

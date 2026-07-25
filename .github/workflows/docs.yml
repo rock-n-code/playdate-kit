@@ -52,10 +52,10 @@ jobs:
       - name: Generate documentation
         run: |
           swift package --allow-writing-to-directory docs \
-            generate-documentation --target PlayDate \
+            generate-documentation --target PlaydateKit \
             --disable-indexing \
             --transform-for-static-hosting \
-            --hosting-base-path play-date \
+            --hosting-base-path playdate-kit \
             --output-path docs
 
       - uses: actions/upload-pages-artifact@v3

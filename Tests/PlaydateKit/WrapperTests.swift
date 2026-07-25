@@ -10,7 +10,7 @@
 
 import CPlaydate
 import Testing
-@testable import PlayDate
+@testable import PlaydateKit
 
 @Suite(.serialized)
 struct WrapperTests {

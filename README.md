@@ -1,6 +1,6 @@
-# PlayDate
+# PlaydateKit
 
-[![CI](https://github.com/<you>/play-date/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/play-date/actions/workflows/ci.yml)
+[![CI](https://github.com/<you>/playdate-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/<you>/playdate-kit/actions/workflows/ci.yml)
 
 Swift bindings to the [Playdate](https://play.date) C API.
 
@@ -48,14 +48,14 @@ If Xcode had the package open before you ran the script, make it re-read the man
 ```swift
 // Package.swift of your game
 dependencies: [
-    .package(url: "https://github.com/<you>/play-date.git", from: "0.1.0"),
+    .package(url: "https://github.com/<you>/playdate-kit.git", from: "0.1.0"),
     // …or, while developing locally:
-    // .package(path: "../play-date"),
+    // .package(path: "../playdate-kit"),
 ],
 targets: [
     .target(
         name: "MyGame",
-        dependencies: [.product(name: "PlayDate", package: "play-date")]
+        dependencies: [.product(name: "PlaydateKit", package: "playdate-kit")]
     ),
 ]
 ```
@@ -66,7 +66,7 @@ A Playdate game has a single C entry point, `eventHandler`. Export it with `@_cd
 
 ```swift
 import CPlaydate
-import PlayDate
+import PlaydateKit
 
 @_cdecl("eventHandler")
 func eventHandler(
@@ -289,7 +289,7 @@ try Lua.addFunction(double, name: "mylib.double")
 
 ## Conventions
 
-- **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`, …) live at the top level of the module; only the raw C API bootstrap stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`). On a name collision with another module, qualify with the module name: `PlayDate.System`.
+- **Namespaces.** The subsystem namespaces (`System`, `Graphics`, `Sound`, …) live at the top level of the module; only the raw C API bootstrap stays under `Playdate` (`Playdate.initialize(with:)`, `Playdate.api`). On a name collision with another module, qualify with the module name: `PlaydateKit.System`.
 - **Errors.** Fallible operations use typed throws — `throws(PlaydateError)` generally, `throws(Network.NetError)` for network I/O — so `catch` gives you a concrete type, and no `any Error` existentials are needed.
 - **Ownership.** A wrapper that *creates* a C object frees it on `deinit`; keep the wrapper referenced for as long as you use it. Wrappers vending OS-owned objects (a `Bitmap` from a `BitmapTable`, a track from a `Sequence`, …) don't free them — keep the owner alive instead, as documented on each API. Resources a C object keeps referencing (a sprite's image, a synth's sample, modulators, menu-item option titles) are retained by the wrapper automatically.
 - **Callbacks.** Where the C API provides a userdata slot, closures are supported everywhere and delivered back with the right wrapper. A few C callbacks have no userdata (serial messages, headphone changes, scoreboard
@@ -305,7 +305,7 @@ Shipping a `.pdx` needs the Playdate toolchain on top:
 - **Simulator** builds compile your game as a host dylib placed in the pdx (`Examples/HelloPlaydate/build.sh` shows the SwiftPM-based flow).
 - **Device** builds cross-compile with Embedded Swift for ARM Cortex-M7 (`-enable-experimental-feature Embedded`, triple `armv7em-none-none-eabi`, `-fshort-enums` to match the firmware ABI) and link through the SDK's own make infrastructure.
 
-[`Examples/swift.mk`](Examples/swift.mk) packages the device pipeline: it locates the SDK and a Swift snapshot toolchain, compiles the `PlayDate` wrapper as a module-aliased Embedded Swift module, and hooks the game objects into the SDK's `common.mk`. A game needs only a short Makefile on top — [`Examples/HelloPlaydate/Makefile`](Examples/HelloPlaydate/Makefile) is the template, and `make` in that directory produces a `.pdx` containing both the device binary and the simulator dylib. Swift code is compiled `-Osize` by default (measured ~15% smaller than `-O` on the example); override with `make SWIFT_OPT=-O`. The setup follows Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples), adapted to this package.
+[`Examples/swift.mk`](Examples/swift.mk) packages the device pipeline: it locates the SDK and a Swift snapshot toolchain, compiles the `PlaydateKit` wrapper as a module-aliased Embedded Swift module, and hooks the game objects into the SDK's `common.mk`. A game needs only a short Makefile on top — [`Examples/HelloPlaydate/Makefile`](Examples/HelloPlaydate/Makefile) is the template, and `make` in that directory produces a `.pdx` containing both the device binary and the simulator dylib. Swift code is compiled `-Osize` by default (measured ~15% smaller than `-O` on the example); override with `make SWIFT_OPT=-O`. The setup follows Apple's [swift-playdate-examples](https://github.com/apple/swift-playdate-examples), adapted to this package.
 
 The wrappers are written within the Embedded Swift subset for exactly this reason: no Foundation, no reflection, no untyped throws. That claim is enforced, not aspirational: `Scripts/build-embedded.sh` cross-compiles the whole module for `armv7em-none-none-eabi` with Embedded Swift enabled and the device's `-fshort-enums` ABI, and CI runs it on every push. Running it locally needs the same snapshot toolchain and Arm GNU toolchain headers:
 
@@ -324,7 +324,7 @@ A root Makefile fronts the development lifecycle; a bare `make` (or `make help`)
 | `make build` / `make test` | Build the bindings for the host / run the unit tests |
 | `make outdated` / `make upgrade` | Show / apply updates to the SwiftPM dependencies |
 | `make embedded` | Compile-only device check (Embedded Swift, `armv7em-none-none-eabi`) |
-| `make consumer-test` | Build and run a scratch package depending on play-date |
+| `make consumer-test` | Build and run a scratch package depending on playdate-kit |
 | `make check` | Everything CI runs: build, test, embedded, consumer-test |
 | `make docs` / `make docs-preview` | Generate / preview the DocC documentation |
 | `make example` / `make example-run` | Build the HelloPlaydate example / open it in the Playdate Simulator |
@@ -352,7 +352,7 @@ Sideload the device build from the Playdate Simulator (Device ▸ Upload Game to
 The API reference is a DocC catalog. Generate it locally with:
 
 ```sh
-swift package generate-documentation --target PlayDate
+swift package generate-documentation --target PlaydateKit
 ```
 
 or browse it with Xcode's documentation viewer (Product ▸ Build Documentation). Pushes to `main` publish the rendered docs to GitHub Pages via `.github/workflows/docs.yml` (enable Pages ▸ Source: GitHub Actions in the repository settings once).
@@ -370,17 +370,17 @@ Scripts/
                          module at your SDK installation
   build-embedded.sh      Compile-only device check: Embedded Swift for
                          armv7em-none-none-eabi with the device ABI (CI)
-  consumer-test.sh       Builds a scratch package depending on play-date
+  consumer-test.sh       Builds a scratch package depending on playdate-kit
                          to prove settings propagate to consumers (CI)
 Sources/
   CPlaydate/        System library target: module map + umbrella header
                     importing pd_api.h from the SDK, plus inline shims for
                     the variadic log/error functions
-  PlayDate/         The Swift bindings, one file per subsystem
+  PlaydateKit/      The Swift bindings, one file per subsystem
                     (Sound and Graphics are split across several files),
-                    plus the PlayDate.docc documentation catalog
+                    plus the PlaydateKit.docc documentation catalog
 Tests/
-  PlayDate/         Host-runnable tests for the pure value types
+  PlaydateKit/      Host-runnable tests for the pure value types
 ```
 
 ## License

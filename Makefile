@@ -1,4 +1,4 @@
-# Development lifecycle front door for the play-date package. All logic
+# Development lifecycle front door for the playdate-kit package. All logic
 # lives in SwiftPM, Scripts/, and the example's own Makefile; the targets
 # here only dispatch. Run `make` or `make help` for the list.
 #
@@ -39,16 +39,16 @@ upgrade: ## Update the SwiftPM dependencies to their latest allowed versions
 embedded: ## Compile-only device check (Embedded Swift, armv7em-none-none-eabi)
 	SWIFT_BIN="$(SWIFT_BIN)" Scripts/build-embedded.sh
 
-consumer-test: ## Build and run a scratch package depending on play-date
+consumer-test: ## Build and run a scratch package depending on playdate-kit
 	Scripts/consumer-test.sh
 
 check: build test embedded consumer-test ## Everything CI runs: build, test, embedded, consumer-test
 
 docs: ## Generate the DocC documentation archive
-	swift package generate-documentation --target PlayDate
+	swift package generate-documentation --target PlaydateKit
 
 docs-preview: ## Preview the DocC documentation in a local web server
-	swift package --disable-sandbox preview-documentation --target PlayDate
+	swift package --disable-sandbox preview-documentation --target PlaydateKit
 
 example: ## Build the HelloPlaydate example (device + simulator pdx)
 	$(MAKE) -C $(EXAMPLE_DIR)
