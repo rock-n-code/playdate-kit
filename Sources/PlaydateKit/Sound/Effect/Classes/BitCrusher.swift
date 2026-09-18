@@ -18,17 +18,17 @@ extension Sound {
             }
         }
 
-        /// When `true`, `setDepth` values map exponentially to bit depth.
+        /// If `true`, quantizing scales with amplitude so quiet sounds survive; if `false`,
+        /// it clears a fixed number of low-order bits.
         public func setExponential(_ flag: Bool) {
             BitCrusher.api.pointee.setExponential.unsafelyUnwrapped(pointer, flag)
         }
 
-        /// The amount of crushing, 0 (none) to 1 (quantized to 1 bit).
+        /// Quantizing, 0 (none) to 1 (1-bit output).
         public func setDepth(_ depth: Float) {
             BitCrusher.api.pointee.setDepth.unsafelyUnwrapped(pointer, depth)
         }
 
-        /// Modulates the crush depth.
         public var depthModulator: SignalValue? {
             get { SignalValue.wrap(BitCrusher.api.pointee.getDepthModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -37,12 +37,11 @@ extension Sound {
             }
         }
 
-        /// The amount of downsampling, 0 (none) to 1 (every sample repeated).
+        /// Sample-rate reduction, 0 (none) to 1 (so much that audio stops).
         public func setDownsampling(_ downsampling: Float) {
             BitCrusher.api.pointee.setDownsampling.unsafelyUnwrapped(pointer, downsampling)
         }
 
-        /// Modulates the downsampling amount.
         public var downsamplingModulator: SignalValue? {
             get { SignalValue.wrap(BitCrusher.api.pointee.getDownsamplingModulator.unsafelyUnwrapped(pointer)) }
             set {

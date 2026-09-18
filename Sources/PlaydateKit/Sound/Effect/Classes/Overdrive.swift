@@ -18,7 +18,7 @@ extension Sound {
             }
         }
 
-        /// The input gain applied before clipping.
+        /// Input gain, applied before clipping.
         public func setGain(_ gain: Float) {
             Overdrive.api.pointee.setGain.unsafelyUnwrapped(pointer, gain)
         }
@@ -28,7 +28,6 @@ extension Sound {
             Overdrive.api.pointee.setLimit.unsafelyUnwrapped(pointer, limit)
         }
 
-        /// Modulates the clipping limit.
         public var limitModulator: SignalValue? {
             get { SignalValue.wrap(Overdrive.api.pointee.getLimitModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -37,12 +36,11 @@ extension Sound {
             }
         }
 
-        /// A DC offset applied to the input, making the clipping asymmetric.
+        /// Added to the upper and lower limits, making clipping asymmetric.
         public func setOffset(_ offset: Float) {
             Overdrive.api.pointee.setOffset.unsafelyUnwrapped(pointer, offset)
         }
 
-        /// Modulates the DC offset.
         public var offsetModulator: SignalValue? {
             get { SignalValue.wrap(Overdrive.api.pointee.getOffsetModulator.unsafelyUnwrapped(pointer)) }
             set {

@@ -1,17 +1,17 @@
 internal import CPlaydate
 
 extension Sprite {
-    /// How a sprite reacts when a collision occurs.
+    /// How a moving sprite reacts to a collision. Wraps `SpriteCollisionResponseType`.
     public enum CollisionResponse: UInt32, Sendable {
-        /// The sprite slides along the edge of the other sprite.
+        /// Slides along the other sprite.
         case slide = 0
-        /// The sprite stops at the point of collision.
+        /// Stops at the point of collision.
         case freeze = 1
-        /// The sprite passes through, still reporting the collision.
+        /// Passes through; the collision is still reported.
         case overlap = 2
-        /// The sprite bounces off the other sprite.
         case bounce = 3
 
+        /// Unknown C values map to `.freeze`.
         init(_ response: SpriteCollisionResponseType) {
             self = CollisionResponse(rawValue: UInt32(response.rawValue)) ?? .freeze
         }

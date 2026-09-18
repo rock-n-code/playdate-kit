@@ -1,16 +1,15 @@
 internal import CPlaydate
 
 extension Graphics {
-    /// An integer rectangle mirroring `LCDRect`. `right` and `bottom` are
-    /// not inclusive.
+    /// A rectangle, in pixels. Mirrors `LCDRect`: `right` and `bottom` are exclusive.
     public struct Rect: Sendable {
         public var left: Int
+        /// Exclusive.
         public var right: Int
         public var top: Int
+        /// Exclusive.
         public var bottom: Int
 
-        /// Creates a rect from its edges. `right` and `bottom` are not
-        /// inclusive.
         public init(left: Int, right: Int, top: Int, bottom: Int) {
             self.left = left
             self.right = right
@@ -18,7 +17,7 @@ extension Graphics {
             self.bottom = bottom
         }
 
-        /// Creates a rect from an origin and size.
+        /// `(x, y)` is the upper-left corner.
         public init(x: Int, y: Int, width: Int, height: Int) {
             self.init(left: x, right: x + width, top: y, bottom: y + height)
         }
@@ -33,13 +32,10 @@ extension Graphics {
                     top: Int32(top), bottom: Int32(bottom))
         }
 
-        /// The rect's width.
         public var width: Int { right - left }
 
-        /// The rect's height.
         public var height: Int { bottom - top }
 
-        /// Returns the rect offset by (dx, dy).
         public func translated(dx: Int, dy: Int) -> Rect {
             Rect(left: left + dx, right: right + dx, top: top + dy, bottom: bottom + dy)
         }

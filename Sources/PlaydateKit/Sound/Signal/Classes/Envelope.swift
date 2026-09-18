@@ -5,8 +5,7 @@ extension Sound {
     public final class Envelope: SignalValue {
         private static var api: UnsafePointer<playdate_sound_envelope> { Playdate.envelopeAPI.unsafelyUnwrapped }
 
-        /// Creates an envelope with the given attack and decay times
-        /// (seconds), sustain level (0...1), and release time (seconds).
+        /// `attack`, `decay`, and `release` are in seconds; `sustain` is 0...1.
         public init(attack: Float = 0, decay: Float = 0, sustain: Float = 1, release: Float = 0) {
             let pointer = Envelope.api.pointee.newEnvelope.unsafelyUnwrapped(attack, decay, sustain, release)
             super.init(pointer: pointer.unsafelyUnwrapped, isOwned: true)
@@ -22,55 +21,51 @@ extension Sound {
             }
         }
 
-        /// The attack time, in seconds.
+        /// In seconds.
         public func setAttack(_ attack: Float) {
             Envelope.api.pointee.setAttack.unsafelyUnwrapped(pointer, attack)
         }
 
-        /// The decay time, in seconds.
+        /// In seconds.
         public func setDecay(_ decay: Float) {
             Envelope.api.pointee.setDecay.unsafelyUnwrapped(pointer, decay)
         }
 
-        /// The sustain level, 0...1.
+        /// 0...1.
         public func setSustain(_ sustain: Float) {
             Envelope.api.pointee.setSustain.unsafelyUnwrapped(pointer, sustain)
         }
 
-        /// The release time, in seconds.
+        /// In seconds.
         public func setRelease(_ release: Float) {
             Envelope.api.pointee.setRelease.unsafelyUnwrapped(pointer, release)
         }
 
-        /// When `true`, a new note while a note is playing does not restart
-        /// the envelope.
+        /// If `true`, retriggering before release stays in sustain instead of re-attacking.
         public func setLegato(_ flag: Bool) {
             Envelope.api.pointee.setLegato.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
-        /// When `true`, a new note restarts the envelope from zero instead of
-        /// its current value.
+        /// If `true`, each note starts from 0 instead of the current value.
         public func setRetrigger(_ flag: Bool) {
             Envelope.api.pointee.setRetrigger.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
-        /// Bends the envelope's segments: 0 is linear, 1 is maximum curvature.
+        /// Segment shape, 0 (linear) to 1 (exponential).
         public func setCurvature(_ amount: Float) {
             Envelope.api.pointee.setCurvature.unsafelyUnwrapped(pointer, amount)
         }
 
-        /// How much note velocity scales the envelope's output.
+        /// 1 (default) scales output by velocity; 0 ignores it.
         public func setVelocitySensitivity(_ sensitivity: Float) {
             Envelope.api.pointee.setVelocitySensitivity.unsafelyUnwrapped(pointer, sensitivity)
         }
 
-        /// Scales the envelope's rate by note: notes above `start` play the
-        /// envelope faster (up to `scaling` at `end` and beyond).
+        /// Rate scale by note: 1 below `start`, `scaling` above `end`, interpolated between.
         public func setRateScaling(_ scaling: Float, start: MIDINote, end: MIDINote) {
             Envelope.api.pointee.setRateScaling.unsafelyUnwrapped(pointer, scaling, start, end)
         }
 
-        /// The envelope's current value.
         public var value: Float {
             Envelope.api.pointee.getValue.unsafelyUnwrapped(pointer)
         }

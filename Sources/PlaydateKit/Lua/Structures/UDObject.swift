@@ -5,26 +5,23 @@ extension Lua {
     public struct UDObject {
         let pointer: OpaquePointer
 
-        /// Prevents the object from being garbage-collected until `release()`.
+        /// Prevents garbage collection until a balancing `release()`. Returns `self`.
         @discardableResult
         public func retain() -> UDObject {
             UDObject(pointer: luaAPI.pointee.retainObject.unsafelyUnwrapped(pointer).unsafelyUnwrapped)
         }
 
-        /// Balances a `retain()`, allowing the object to be
-        /// garbage-collected again.
+        /// Balances one `retain()`.
         public func release() {
             luaAPI.pointee.releaseObject.unsafelyUnwrapped(pointer)
         }
 
-        /// Pops the value on top of the stack and stores it in the object's
-        /// user-value `slot` (1-based).
+        /// Sets user-value `slot` (1-based) to the top stack value.
         public func setUserValue(slot: UInt32) {
             luaAPI.pointee.setUserValue.unsafelyUnwrapped(pointer, slot)
         }
 
-        /// Pushes the value in user-value `slot` onto the stack and returns
-        /// its stack position, or `nil` if there is none.
+        /// Pushes user-value `slot` (1-based); returns its stack position, or `nil` if 0.
         @discardableResult
         public func getUserValue(slot: UInt32) -> Int? {
             let position = luaAPI.pointee.getUserValue.unsafelyUnwrapped(pointer, slot)

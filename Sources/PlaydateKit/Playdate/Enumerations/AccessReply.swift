@@ -1,10 +1,9 @@
-/// The user's answer to a permission request (microphone, network).
+/// Immediate result of a permission request (microphone, network). Wraps `enum accessReply`.
 public enum AccessReply: UInt32, Sendable {
-    /// The user has not answered yet; the request's completion delivers
-    /// the answer later.
+    /// Not answered yet; the completion receives the answer.
     case ask = 0
-    /// The user has already denied access; the completion is not called.
+    /// Already denied; the completion is not called.
     case deny = 1
-    /// The user has already granted access; the completion is not called.
+    /// Already granted; the completion is not called.
     case allow = 2
 }

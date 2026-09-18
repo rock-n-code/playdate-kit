@@ -10,8 +10,7 @@ extension Sound {
     /// Middle C (`NOTE_C4`).
     public static let noteC4: MIDINote = 60
 
-    /// The number of audio frames rendered per system audio cycle
-    /// (`AUDIO_FRAMES_PER_CYCLE`).
+    /// Audio frames rendered per audio cycle (`AUDIO_FRAMES_PER_CYCLE`).
     public static let audioFramesPerCycle = 512
 
     /// Converts a MIDI note to a frequency in Hz.
@@ -24,7 +23,7 @@ extension Sound {
         pd_frequencyToNote(frequency)
     }
 
-    /// The most recent sound error as a thrown error.
+    /// The last sound error, as a `PlaydateError`.
     static func lastError() -> PlaydateError {
         PlaydateError(cString: snd.pointee.getError.unsafelyUnwrapped())
     }
@@ -41,7 +40,8 @@ extension Sound {
         String(playdateCString: snd.pointee.getError.unsafelyUnwrapped())
     }
 
-    /// Removes a source from its channel.
+    /// Removes `source` from its channel; `false` if it wasn't in one. Also releases a
+    /// `CallbackSource`'s callback.
     @discardableResult
     public static func removeSource(_ source: Source) -> Bool {
         let removed = snd.pointee.removeSource.unsafelyUnwrapped(source.pointer) != 0
@@ -49,16 +49,15 @@ extension Sound {
         return removed
     }
 
-    /// Sets a callback that records microphone input. Return `false` from the
-    /// callback to stop recording. Pass `nil` to stop recording immediately.
-    /// The buffer contains mono 16-bit samples.
+    /// `callback` gets mono 16-bit mic samples each audio cycle and returns `false` to stop;
+    /// `nil` stops now. Returns `false` on error, e.g. access denied (`requestMicAccess`).
     @discardableResult
     public static func setMicCallback(source: MicSource = .autodetect,
-                                      _ callback: ((UnsafeMutableBufferPointer<Int16>) -> Bool)?) -> Bool {
+                                      _ callback: ((Span<Int16>) -> Bool)?) -> Bool {
         micCallback = callback
         if callback != nil {
             return snd.pointee.setMicCallback.unsafelyUnwrapped({ _, buffer, length in
-                let samples = UnsafeMutableBufferPointer(start: buffer, count: Int(length))
+                let samples = UnsafeBufferPointer(start: buffer, count: Int(length)).span
                 return Sound.micCallback?(samples) == true ? 1 : 0
             }, nil, CPlaydate.MicSource(CPlaydate.MicSource.RawValue(source.rawValue))) != 0
         } else {
@@ -66,12 +65,10 @@ extension Sound {
         }
     }
 
-    nonisolated(unsafe) private static var micCallback: ((UnsafeMutableBufferPointer<Int16>) -> Bool)?
+    nonisolated(unsafe) private static var micCallback: ((Span<Int16>) -> Bool)?
 
-    /// Asks the user for permission to record from the microphone. `purpose`
-    /// is shown in the permission prompt. The completion receives whether
-    /// access was granted; it is not called if the reply was already
-    /// determined (the returned value is `.deny` or `.allow`).
+    /// Asks for mic permission before `setMicCallback`; `purpose` is shown in the prompt.
+    /// `completion` gets the answer only when this returns `.ask` (else already known).
     @discardableResult
     public static func requestMicAccess(purpose: String? = nil,
                                         _ completion: @escaping (Bool) -> Void) -> AccessReply {
@@ -84,7 +81,7 @@ extension Sound {
         }
         let reply: accessReply
         if let purpose {
-            reply = purpose.withPlaydateCString {
+            reply = purpose.withCString {
                 snd.pointee.requestMicAccess.unsafelyUnwrapped($0, trampoline, box.toOpaque())
             }
         } else {
@@ -104,8 +101,8 @@ extension Sound {
         return (headphone != 0, headsetMic != 0)
     }
 
-    /// Installs a callback invoked when the headphone or headset-mic state
-    /// changes.
+    /// Called when headphone or headset-mic state changes; `nil` removes it. While set,
+    /// output doesn't auto-switch speaker/headphones; call `setOutputsActive` from it.
     public static func setHeadphoneChangeCallback(_ callback: ((_ headphone: Bool, _ headsetMic: Bool) -> Void)?) {
         headphoneChangeCallback = callback
         if callback != nil {
@@ -119,16 +116,12 @@ extension Sound {
 
     nonisolated(unsafe) private static var headphoneChangeCallback: ((Bool, Bool) -> Void)?
 
-    /// Forces audio output to the headphone and/or speaker. When the
-    /// headphone jack drives output and `speaker` is also set, the speaker
-    /// plays too.
+    /// Forces audio output to the given outputs, regardless of headphone state.
     public static func setOutputsActive(headphone: Bool, speaker: Bool) {
         snd.pointee.setOutputsActive.unsafelyUnwrapped(headphone ? 1 : 0, speaker ? 1 : 0)
     }
 
-    /// Adds a callback-based source to the default channel. The callback
-    /// fills the sample buffers and returns `true` if it produced output.
-    /// Buffers hold 16-bit samples; `right` is non-nil only when `stereo`.
+    /// Adds a `CallbackSource` to the default channel.
     public static func addSource(stereo: Bool,
                                  _ callback: @escaping CallbackSource.Callback) -> CallbackSource {
         let source = CallbackSource(callback: callback)

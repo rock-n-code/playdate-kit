@@ -4,19 +4,17 @@ internal import CPlaydate
 private var tcpAPI: UnsafePointer<playdate_tcp> { Playdate.tcpAPI.unsafelyUnwrapped }
 
 extension Network {
-    /// A TCP connection to a server. Wraps `TCPConnection`.
-    ///
-    /// The binding stores a back-reference to each wrapper in the
-    /// underlying object's userdata slot so callbacks can recover the
-    /// wrapper; the C userdata slot is therefore reserved by the binding.
+    /// A TCP connection. Wraps `TCPConnection`; methods throw `Network.NetError`.
+    /// Callbacks don't retain it: keep it referenced until they fire, as `deinit`
+    /// drops pending callbacks and releases the C connection.
     public final class TCPConnection {
         let pointer: OpaquePointer
 
         var openCompletion: ((TCPConnection, NetError?) -> Void)?
         var connectionClosedCallback: ((TCPConnection, NetError?) -> Void)?
 
-        /// Requests permission to connect to `server`. If the reply is
-        /// `.ask`, the completion is called later with the user's answer.
+        /// Asks to connect to `server`; call before `init`. `purpose` appears in
+        /// the dialog; `completion` runs only if the reply is `.ask`.
         @discardableResult
         public static func requestAccess(server: String, port: Int, useSSL: Bool = true,
                                          purpose: String? = nil,
@@ -27,10 +25,9 @@ extension Network {
                 completion: completion)
         }
 
-        /// Creates a connection to `server`. Fails if access has not been
-        /// granted. Call `open(_:)` to connect.
+        /// Does nothing until `open(_:)`. `nil` if access is denied or not yet granted.
         public init?(server: String, port: Int, useSSL: Bool = true) {
-            let pointer = server.withPlaydateCString {
+            let pointer = server.withCString {
                 tcpAPI.pointee.newConnection.unsafelyUnwrapped($0, Int32(port), useSSL)
             }
             guard let pointer else { return nil }
@@ -49,17 +46,17 @@ extension Network {
             return Unmanaged<TCPConnection>.fromOpaque(userdata).takeUnretainedValue()
         }
 
-        /// The last error on the connection, if any.
+        /// The connection's last error, if any.
         public var error: NetError? {
             Network.optionalError(tcpAPI.pointee.getError.unsafelyUnwrapped(pointer))
         }
 
-        /// The time to wait for the connection to open, in milliseconds.
+        /// Connect timeout, in ms.
         public func setConnectTimeout(milliseconds: Int) {
             tcpAPI.pointee.setConnectTimeout.unsafelyUnwrapped(pointer, Int32(milliseconds))
         }
 
-        /// Opens the connection. The completion receives `nil` on success.
+        /// Errors are thrown immediately or passed to `completion` (`nil` on success).
         public func open(_ completion: @escaping (TCPConnection, NetError?) -> Void) throws(NetError) {
             openCompletion = completion
             let error = tcpAPI.pointee.open.unsafelyUnwrapped(pointer, { connection, error, _ in
@@ -71,13 +68,12 @@ extension Network {
             try Network.check(error)
         }
 
-        /// Closes the connection.
+        /// Closes the connection; it can be reused.
         public func close() throws(NetError) {
             try Network.check(tcpAPI.pointee.close.unsafelyUnwrapped(pointer))
         }
 
-        /// Called when the connection closes, with the reason if it closed
-        /// due to an error.
+        /// Called on close with the error, if any; `nil` removes it.
         public func setConnectionClosedCallback(_ callback: ((TCPConnection, NetError?) -> Void)?) {
             connectionClosedCallback = callback
             if callback != nil {
@@ -90,71 +86,69 @@ extension Network {
             }
         }
 
-        /// The time to wait for incoming data, in milliseconds.
+        /// How long `read` waits for data, in ms (default 1000).
         public func setReadTimeout(milliseconds: Int) {
             tcpAPI.pointee.setReadTimeout.unsafelyUnwrapped(pointer, Int32(milliseconds))
         }
 
-        /// The size of the connection's read buffer, in bytes.
+        /// Read buffer size, in bytes (default 64 KB).
         public func setReadBufferSize(bytes: Int) {
             tcpAPI.pointee.setReadBufferSize.unsafelyUnwrapped(pointer, Int32(bytes))
         }
 
-        /// The number of bytes available to read.
+        /// Bytes available to read.
         public var bytesAvailable: Int {
             Int(tcpAPI.pointee.getBytesAvailable.unsafelyUnwrapped(pointer))
         }
 
-        /// The number of written bytes not yet sent on the wire.
+        /// Written bytes not yet sent.
         public var sentBytesPending: Int {
             Int(tcpAPI.pointee.getSentBytesPending.unsafelyUnwrapped(pointer))
         }
 
-        /// Reads up to `buffer.count` bytes, waiting up to the read timeout.
-        /// Returns the number of bytes read.
-        public func read(into buffer: UnsafeMutableRawBufferPointer) throws(NetError) -> Int {
-            let result = tcpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count)
-            if result < 0 {
-                throw NetError(rawValue: result) ?? .unknown
-            }
-            return Int(result)
-        }
-
-        /// Reads up to `length` bytes, waiting up to the read timeout.
-        public func read(length: Int) throws(NetError) -> [UInt8] {
-            var bytes = [UInt8](repeating: 0, count: length)
-            let result = bytes.withUnsafeMutableBytes { buffer in
+        /// Reads up to `buffer.count` bytes within the read timeout; returns the count.
+        public func read(into buffer: inout MutableSpan<UInt8>) throws(NetError) -> Int {
+            let result = buffer.withUnsafeMutableBufferPointer { buffer in
                 tcpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count)
             }
             if result < 0 {
                 throw NetError(rawValue: result) ?? .unknown
             }
-            bytes.removeLast(length - Int(result))
-            return bytes
-        }
-
-        /// Writes the buffer to the connection. Returns the number of bytes
-        /// accepted.
-        @discardableResult
-        public func write(_ buffer: UnsafeRawBufferPointer) throws(NetError) -> Int {
-            let result = tcpAPI.pointee.write.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count)
-            if result < 0 {
-                throw NetError(rawValue: result) ?? .unknown
-            }
             return Int(result)
         }
 
-        /// Writes the bytes to the connection. Returns the number of bytes
-        /// accepted.
+        /// Like `read(into:)`, returning the bytes read.
+        public func read(length: Int) throws(NetError) -> [UInt8] {
+            try [UInt8](capacity: length) { output throws(NetError) in
+                let result = output.withUnsafeMutableBufferPointer { buffer, initializedCount in
+                    let result = tcpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count)
+                    initializedCount = max(Int(result), 0)
+                    return result
+                }
+                if result < 0 {
+                    throw NetError(rawValue: result) ?? .unknown
+                }
+            }
+        }
+
+        /// Queues `bytes`; returns the count handed to the network stack.
         @discardableResult
-        public func write(_ bytes: [UInt8]) throws(NetError) -> Int {
-            let result = bytes.withUnsafeBytes { buffer in
+        public func write(_ bytes: Span<UInt8>) throws(NetError) -> Int {
+            let result = bytes.withUnsafeBufferPointer { buffer in
                 tcpAPI.pointee.write.unsafelyUnwrapped(pointer, buffer.baseAddress, buffer.count)
             }
             if result < 0 {
                 throw NetError(rawValue: result) ?? .unknown
             }
             return Int(result)
+        }
+
+        /// Same as the `Span` overload.
+        @discardableResult
+        public func write(_ bytes: [UInt8]) throws(NetError) -> Int {
+            try bytes.withUnsafeBufferPointer { buffer throws(NetError) in
+                try write(buffer.span)
+            }
         }
     }
 }

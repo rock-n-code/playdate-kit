@@ -69,8 +69,7 @@ import Testing
     defer { copy.deallocate() }
     #expect(String(playdateCString: copy) == original)
 
-    let viaClosure = original.withPlaydateCString { String(playdateCString: $0) }
-    #expect(viaClosure == original)
+    #expect(String(playdateCString: nil) == nil)
 }
 
 @Test func dateTimeMirrorsCStruct() {

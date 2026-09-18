@@ -1,11 +1,10 @@
 internal import CPlaydate
 
 extension Scoreboards {
-    /// The game's boards.
+    /// The game's boards. Copied from `PDBoardsList`.
     public struct BoardsList {
-        /// When the list was last updated, in seconds since the epoch.
+        /// Last update, in seconds since the epoch.
         public let lastUpdated: UInt32
-        /// The game's boards.
         public let boards: [Board]
 
         init(_ list: PDBoardsList) {

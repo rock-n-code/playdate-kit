@@ -4,19 +4,16 @@ Swift bindings to the Playdate C API.
 
 ## Overview
 
-The Playdate C API is delivered as a `PlaydateAPI*` struct of function
-pointers that the firmware hands to your game at launch. This module wraps
-that surface in idiomatic Swift: top-level namespaces per subsystem, wrapper
-types with ownership semantics, closures instead of function-pointer/userdata
-pairs, `OptionSet`s and `enum`s instead of raw constants, and typed `throws`
-for fallible calls.
+The firmware hands your game a `PlaydateAPI*`: a struct of function
+pointers. This module wraps it with per-subsystem namespaces, wrapper types
+that own their C objects, closures instead of function-pointer/userdata
+pairs, `OptionSet`s and `enum`s instead of raw constants, and typed `throws`.
 
 Call ``Playdate/initialize(with:)`` from your game's `eventHandler` before
-using anything else — see <doc:GettingStarted>.
+anything else; see <doc:GettingStarted>.
 
-The bindings are written within the Embedded Swift subset, so the same code
-compiles for the Playdate Simulator and for the device
-(`armv7em-none-none-eabi`).
+The module uses only the Embedded Swift subset, so the same code compiles
+for the Playdate Simulator and the device (`armv7em-none-none-eabi`).
 
 ## Topics
 

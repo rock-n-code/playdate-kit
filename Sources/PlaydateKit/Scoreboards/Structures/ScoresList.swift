@@ -1,17 +1,16 @@
 internal import CPlaydate
 
 extension Scoreboards {
-    /// The scores on a board.
+    /// The scores on a board. Copied from `PDScoresList`.
     public struct ScoresList {
-        /// The board the scores belong to.
         public let boardID: String
-        /// When the list was last updated, in seconds since the epoch.
+        /// Last update, in seconds since the epoch.
         public let lastUpdated: UInt32
-        /// Whether the current player's score is included in the list.
+        /// Whether the current player's score is in the list.
         public let playerIncluded: Bool
-        /// The maximum number of scores the list can hold.
+        /// Maximum number of scores the list can hold.
         public let limit: UInt32
-        /// The scores, ordered by rank.
+        /// Ordered by rank.
         public let scores: [Score]
 
         init(_ list: PDScoresList) {

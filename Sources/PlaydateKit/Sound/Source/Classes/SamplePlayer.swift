@@ -18,7 +18,6 @@ extension Sound {
                       isOwned: true)
         }
 
-        /// Creates a player for the sample at `path`.
         public convenience init(path: String) throws(PlaydateError) {
             self.init()
             sample = try AudioSample(path: path)
@@ -30,7 +29,7 @@ extension Sound {
             }
         }
 
-        /// The sample to play.
+        /// Retained by the player.
         public var sample: AudioSample? {
             get { retainedSample }
             set {
@@ -39,46 +38,43 @@ extension Sound {
             }
         }
 
-        /// Starts playback at `rate`, looping `repeat` times; 0 loops
-        /// endlessly, -1 loops ping-pong.
+        /// Plays `repeat` times at `rate` (1 is normal); 0 loops forever, -1 ping-pongs.
         @discardableResult
         public func play(repeat repeatCount: Int = 1, rate: Float = 1) -> Bool {
             SamplePlayer.api.pointee.play.unsafelyUnwrapped(pointer, Int32(repeatCount), rate) != 0
         }
 
-        /// Stops playback.
         public func stop() {
             SamplePlayer.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
-        /// Pauses or resumes playback.
         public func setPaused(_ paused: Bool) {
             SamplePlayer.api.pointee.setPaused.unsafelyUnwrapped(pointer, paused ? 1 : 0)
         }
 
-        /// The sample's length in seconds.
+        /// Length in seconds.
         public var length: Float {
             SamplePlayer.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
-        /// The playback position in seconds.
+        /// Playback position, in seconds.
         public var offset: Float {
             get { SamplePlayer.api.pointee.getOffset.unsafelyUnwrapped(pointer) }
             set { SamplePlayer.api.pointee.setOffset.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// The playback rate; 1 is normal speed, negative plays backward.
+        /// Playback rate; 1 is normal. Negative plays backward (PCM only, not ADPCM).
         public var rate: Float {
             get { SamplePlayer.api.pointee.getRate.unsafelyUnwrapped(pointer) }
             set { SamplePlayer.api.pointee.setRate.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// Restricts playback to the given range of sample frames.
+        /// Restricts playback to `start`–`end`, in sample frames.
         public func setPlayRange(start: Int, end: Int) {
             SamplePlayer.api.pointee.setPlayRange.unsafelyUnwrapped(pointer, Int32(start), Int32(end))
         }
 
-        /// Sets a function called every time playback loops.
+        /// Called each time playback loops; `nil` removes it.
         public func setLoopCallback(_ callback: ((SamplePlayer) -> Void)?) {
             loopCallback = callback
             if callback != nil {
@@ -92,7 +88,7 @@ extension Sound {
             }
         }
 
-        /// Modulates the playback rate.
+        /// A signal added to `rate`; `nil` clears it. The player retains it.
         public var rateModulator: SignalValue? {
             get { SignalValue.wrap(SamplePlayer.api.pointee.getRateModulator.unsafelyUnwrapped(pointer)) }
             set {

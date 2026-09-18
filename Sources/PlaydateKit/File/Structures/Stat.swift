@@ -1,11 +1,10 @@
 extension File {
-    /// Information about a file or directory, mirroring `FileStat`.
+    /// File or directory information. Mirrors `FileStat`.
     public struct Stat: Sendable {
-        /// Whether the path is a directory.
         public let isDirectory: Bool
-        /// The file's size, in bytes.
+        /// Size in bytes.
         public let size: UInt32
-        /// The time the file was last modified.
+        /// Last modification time; `weekday` is 0 (unset).
         public let modified: System.DateTime
     }
 }

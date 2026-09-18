@@ -1,8 +1,8 @@
 internal import CPlaydate
 
 extension Sound {
-    /// A collection of tracks with tempo and loop control, playable from a
-    /// MIDI file. Wraps `SoundSequence`.
+    /// Tracks played at a shared tempo. Wraps `SoundSequence`.
+    /// Owns, or keeps alive, every track it returns or is given.
     public final class Sequence {
         private static var api: UnsafePointer<playdate_sound_sequence> { Playdate.sequenceAPI.unsafelyUnwrapped }
 
@@ -14,7 +14,6 @@ extension Sound {
             pointer = Sequence.api.pointee.newSequence.unsafelyUnwrapped().unsafelyUnwrapped
         }
 
-        /// Creates a sequence and loads the MIDI file at `path`.
         public convenience init(path: String) throws(PlaydateError) {
             self.init()
             try loadMIDIFile(path: path)
@@ -25,7 +24,7 @@ extension Sound {
         }
 
         public func loadMIDIFile(path: String) throws(PlaydateError) {
-            let loaded = path.withPlaydateCString {
+            let loaded = path.withCString {
                 Sequence.api.pointee.loadMIDIFile.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
@@ -33,7 +32,7 @@ extension Sound {
             }
         }
 
-        /// Starts playback. `completion` is called when the sequence finishes.
+        /// `completion` is called when the sequence finishes.
         public func play(completion: ((Sequence) -> Void)? = nil) {
             finishCallback = completion
             if completion != nil {
@@ -47,48 +46,45 @@ extension Sound {
             }
         }
 
-        /// Stops playback.
         public func stop() {
             Sequence.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
-        /// Whether the sequence is playing.
         public var isPlaying: Bool {
             Sequence.api.pointee.isPlaying.unsafelyUnwrapped(pointer) != 0
         }
 
-        /// The playback position, in samples.
+        /// The playback position, in samples (not steps).
         public var time: UInt32 {
             get { Sequence.api.pointee.getTime.unsafelyUnwrapped(pointer) }
             set { Sequence.api.pointee.setTime.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// The tempo, in steps per second.
+        /// In steps per second.
         public var tempo: Float {
             get { Sequence.api.pointee.getTempo.unsafelyUnwrapped(pointer) }
             set { Sequence.api.pointee.setTempo.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// The sequence's length in steps, including the tail of the last note.
+        /// The length of the longest track, in steps.
         public var length: UInt32 {
             Sequence.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
-        /// Loops the range `loopStart..<loopEnd` (steps) `loops` times while
-        /// playing; 0 loops endlessly.
+        /// Loops steps `start` to `end` `count` times; 0 loops forever.
         public func setLoops(start: Int, end: Int, count: Int = 0) {
             Sequence.api.pointee.setLoops.unsafelyUnwrapped(pointer, Int32(start), Int32(end), Int32(count))
         }
 
-        /// The current step, and the time offset (in samples) into that step.
+        /// `timeOffset` is in samples.
         public var currentStep: (step: Int, timeOffset: Int) {
             var timeOffset: Int32 = 0
             let step = Sequence.api.pointee.getCurrentStep.unsafelyUnwrapped(pointer, &timeOffset)
             return (Int(step), Int(timeOffset))
         }
 
-        /// Moves playback to the given step. If `playNotes` is `true`, notes
-        /// at the position (that started before it) are played.
+        /// `timeOffset` is in samples. If `playNotes`, plays the notes at `step`
+        /// (ignoring `timeOffset`).
         public func setCurrentStep(_ step: Int, timeOffset: Int = 0, playNotes: Bool = false) {
             Sequence.api.pointee.setCurrentStep.unsafelyUnwrapped(pointer, Int32(step),
                                                           Int32(timeOffset), playNotes ? 1 : 0)
@@ -100,8 +96,6 @@ extension Sound {
             Int(Sequence.api.pointee.getTrackCount.unsafelyUnwrapped(pointer))
         }
 
-        /// Adds a new track to the sequence. The track is owned by the
-        /// sequence.
         @discardableResult
         public func addTrack() -> SequenceTrack {
             let track = SequenceTrack(
@@ -111,14 +105,12 @@ extension Sound {
             return track
         }
 
-        /// The track at `index`. Owned by the sequence.
         public func track(at index: Int) -> SequenceTrack? {
             guard let track = Sequence.api.pointee.getTrackAtIndex.unsafelyUnwrapped(
                 pointer, UInt32(index)) else { return nil }
             return SequenceTrack(pointer: track, isOwned: false)
         }
 
-        /// Installs `track` at `index`.
         public func setTrack(_ track: SequenceTrack, at index: Int) {
             if !retainedTracks.contains(where: { $0 === track }) {
                 retainedTracks.append(track)
@@ -126,7 +118,6 @@ extension Sound {
             Sequence.api.pointee.setTrackAtIndex.unsafelyUnwrapped(pointer, track.pointer, UInt32(index))
         }
 
-        /// Releases every playing note in the sequence.
         public func allNotesOff() {
             Sequence.api.pointee.allNotesOff.unsafelyUnwrapped(pointer)
         }

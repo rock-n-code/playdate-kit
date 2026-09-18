@@ -1,12 +1,12 @@
 internal import CPlaydate
 
 extension Sound {
-    /// A source of audio: the base class of `FilePlayer`, `SamplePlayer`,
-    /// `Synth`, `DelayLineTap`, and `CallbackSource`. Wraps `SoundSource`.
+    /// Base class of `FilePlayer`, `SamplePlayer`, `Synth`, `DelayLineTap`, and
+    /// `CallbackSource`. Wraps `SoundSource`.
     public class Source {
         private static var api: UnsafePointer<playdate_sound_source> { Playdate.sourceAPI.unsafelyUnwrapped }
 
-        /// The underlying C object. Set once, immediately after creation.
+        /// Set once, right after creation.
         var pointer: OpaquePointer!
         let isOwned: Bool
         var finishCallback: ((Source) -> Void)?
@@ -16,7 +16,7 @@ extension Sound {
             self.isOwned = isOwned
         }
 
-        /// The playback volume of the left and right channels, 0...1.
+        /// Per-channel volume, 0–1.
         public var volume: (left: Float, right: Float) {
             get {
                 var left: Float = 0, right: Float = 0
@@ -26,7 +26,6 @@ extension Sound {
             set { Source.api.pointee.setVolume.unsafelyUnwrapped(pointer, newValue.left, newValue.right) }
         }
 
-        /// Sets the playback volume of both channels.
         public func setVolume(_ volume: Float) {
             self.volume = (volume, volume)
         }
@@ -35,7 +34,7 @@ extension Sound {
             Source.api.pointee.isPlaying.unsafelyUnwrapped(pointer) != 0
         }
 
-        /// Sets a function called when the source finishes playing.
+        /// Called when the source finishes playing; `nil` removes it.
         public func setFinishCallback(_ callback: ((Source) -> Void)?) {
             finishCallback = callback
             if callback != nil {

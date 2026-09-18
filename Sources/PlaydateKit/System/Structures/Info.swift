@@ -1,11 +1,10 @@
 extension System {
-    /// OS, language, and pdx version information, mirroring `PDInfo`.
+    /// OS, language, and SDK version information. Mirrors `PDInfo`.
     public struct Info: Sendable {
-        /// The Playdate OS version.
+        /// E.g. 20705 for 2.7.5.
         public let osVersion: UInt32
-        /// The system language.
         public let language: Language
-        /// The version of the game's pdx.
+        /// The pdxinfo `pdxversion`: the SDK version the game was built with.
         public let pdxVersion: UInt32
     }
 }

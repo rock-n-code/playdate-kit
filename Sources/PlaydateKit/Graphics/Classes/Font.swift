@@ -1,11 +1,11 @@
 internal import CPlaydate
 
 extension Graphics {
-    /// A font loaded from a .pft file. Wraps `LCDFont`.
+    /// A .pft bitmap font. Wraps `LCDFont`. Glyph bitmaps are borrowed and don't retain
+    /// the font; keep it alive while using them.
     public final class Font {
         let pointer: OpaquePointer
-        /// Fonts created from in-memory data reference that data; it is kept
-        /// alive here.
+        /// `makeFontFromData` doesn't copy its buffer, so it lives as long as the font.
         private let retainedData: UnsafeRawPointer?
 
         init(pointer: OpaquePointer, retainedData: UnsafeRawPointer? = nil) {
@@ -13,19 +13,20 @@ extension Graphics {
             self.retainedData = retainedData
         }
 
-        /// Loads a font from a file.
         public convenience init(path: String) throws(PlaydateError) {
             var error: UnsafePointer<CChar>?
-            let pointer = path.withPlaydateCString { gfx.pointee.loadFont.unsafelyUnwrapped($0, &error) }
+            let pointer = path.withCString { gfx.pointee.loadFont.unsafelyUnwrapped($0, &error) }
             guard let pointer else { throw PlaydateError(cString: error) }
             self.init(pointer: pointer)
         }
 
-        /// Creates a font from the contents of a .pft file already in memory.
-        /// The bytes are copied and retained for the font's lifetime.
-        public convenience init?(data: UnsafeRawBufferPointer, wide: Bool = false) {
+        /// `data`: an uncompressed .pft file minus its 16-byte header; copied for the font's
+        /// lifetime. `wide` must match the header flag for glyphs above U+1FFFF.
+        public convenience init?(data: Span<UInt8>, wide: Bool = false) {
             let copy = UnsafeMutableRawPointer.allocate(byteCount: data.count, alignment: 4)
-            copy.copyMemory(from: data.baseAddress.unsafelyUnwrapped, byteCount: data.count)
+            data.withUnsafeBytes { bytes in
+                copy.copyMemory(from: bytes.baseAddress.unsafelyUnwrapped, byteCount: bytes.count)
+            }
             let fontData = OpaquePointer(copy)
             guard let pointer = gfx.pointee.makeFontFromData.unsafelyUnwrapped(
                 fontData, wide ? 1 : 0, Int32(data.count)) else {
@@ -36,43 +37,41 @@ extension Graphics {
         }
 
         deinit {
-            // Per the C API docs, fonts are freed with the system allocator.
+            // There is no freeFont; fonts are released with `realloc(font, 0)`.
             System.systemFree(UnsafeMutableRawPointer(pointer))
             retainedData?.deallocate()
         }
 
-        /// The font's glyph height in pixels.
+        /// Height, in pixels.
         public var height: Int {
             Int(gfx.pointee.getFontHeight.unsafelyUnwrapped(pointer))
         }
 
-        /// The width of `text` when drawn with this font.
+        /// Width in pixels; `tracking` is pixels between characters.
         public func textWidth(_ text: String, tracking: Int = 0) -> Int {
-            text.withPlaydateUTF8 { bytes, count in
-                Int(gfx.pointee.getTextWidth.unsafelyUnwrapped(pointer, bytes, count,
+            text.withCString { cString in
+                Int(gfx.pointee.getTextWidth.unsafelyUnwrapped(pointer, cString, text.utf8.count,
                                                                kUTF8Encoding, Int32(tracking)))
             }
         }
 
-        /// The height of `text` when wrapped to `maxWidth` with this font.
+        /// Height in pixels of `text` wrapped to `maxWidth` pixels.
         public func textHeight(_ text: String, maxWidth: Int, wrap: TextWrappingMode = .word,
                                tracking: Int = 0, extraLeading: Int = 0) -> Int {
-            text.withPlaydateUTF8 { bytes, count in
+            text.withCString { cString in
                 Int(gfx.pointee.getTextHeightForMaxWidth.unsafelyUnwrapped(
-                    pointer, bytes, count, Int32(maxWidth), kUTF8Encoding,
+                    pointer, cString, text.utf8.count, Int32(maxWidth), kUTF8Encoding,
                     wrap.cValue, Int32(tracking), Int32(extraLeading)))
             }
         }
 
-        /// The page containing glyph data for the character `codepoint`
-        /// belongs to. The page references data owned by the font.
+        /// `nil` if none. Codepoints differing only in their low 8 bits share a page.
         public func page(for codepoint: UInt32) -> FontPage? {
             guard let page = gfx.pointee.getFontPage.unsafelyUnwrapped(pointer, codepoint) else { return nil }
             return FontPage(pointer: page, font: self)
         }
 
-        /// The glyph for `codepoint`, with its bitmap and advance.
-        /// The bitmap references data owned by the font.
+        /// `nil` if the font has no glyph for `codepoint`.
         public func glyph(for codepoint: UInt32) -> (glyph: Glyph, bitmap: Bitmap?, advance: Int)? {
             var bitmap: OpaquePointer?
             var advance: Int32 = 0

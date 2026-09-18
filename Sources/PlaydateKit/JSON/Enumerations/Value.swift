@@ -1,19 +1,15 @@
 extension JSON {
-    /// A decoded JSON value.
+    /// A JSON value tree, produced by `JSON.decode` and consumed by `JSON.encode(_:pretty:)`.
     public indirect enum Value {
-        /// A JSON `null`.
         case null
-        /// A JSON `true` or `false`.
         case bool(Bool)
-        /// A JSON number without a fractional part.
+        /// Encoded as 32-bit; must fit in `Int32`.
         case int(Int)
-        /// A JSON number with a fractional part.
+        /// A number with a fractional part.
         case float(Float)
-        /// A JSON string.
         case string(String)
-        /// A JSON array.
         case array([Value])
-        /// A JSON object.
+        /// A JSON object; key order is not preserved.
         case table([String: Value])
     }
 }

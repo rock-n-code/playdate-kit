@@ -3,11 +3,9 @@ internal import CPlaydate
 /// The cached `playdate->scoreboards` C API table.
 var scoreboardsAPI: UnsafePointer<playdate_scoreboards> { Playdate.scoreboardsAPI.unsafelyUnwrapped }
 
-/// The scoreboards API for games with online leaderboards.
-///
-/// The C callbacks carry no userdata, so one completion per operation kind
-/// is tracked at a time; starting a second request of the same kind before
-/// the first completes replaces the stored completion.
+/// Online leaderboards. Requests return `false` if they could not start; completions
+/// fail with `PlaydateError` (the C error message). One pending completion per
+/// operation: a repeat request replaces it. C results are copied and freed.
 public enum Scoreboards {}
 
 extension Scoreboards {
@@ -16,13 +14,12 @@ extension Scoreboards {
     nonisolated(unsafe) private static var boardsCompletion: ((Result<BoardsList, PlaydateError>) -> Void)?
     nonisolated(unsafe) private static var scoresCompletion: ((Result<ScoresList, PlaydateError>) -> Void)?
 
-    /// Submits a score to the board. Returns `false` if the request could
-    /// not be started.
+    /// Submits `value` to `boardID`; `completion` gets the resulting score.
     @discardableResult
     public static func addScore(boardID: String, value: UInt32,
                                 completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         addScoreCompletion = completion
-        return boardID.withPlaydateCString { cBoardID in
+        return boardID.withCString { cBoardID in
             scoreboardsAPI.pointee.addScore.unsafelyUnwrapped(cBoardID, value, { score, errorMessage in
                 let completion = Scoreboards.addScoreCompletion
                 Scoreboards.addScoreCompletion = nil
@@ -31,12 +28,12 @@ extension Scoreboards {
         }
     }
 
-    /// Fetches the current player's best score on the board.
+    /// Fetches the current player's best score on `boardID`.
     @discardableResult
     public static func getPersonalBest(boardID: String,
                                        completion: @escaping (Result<Score, PlaydateError>) -> Void) -> Bool {
         personalBestCompletion = completion
-        return boardID.withPlaydateCString { cBoardID in
+        return boardID.withCString { cBoardID in
             scoreboardsAPI.pointee.getPersonalBest.unsafelyUnwrapped(cBoardID, { score, errorMessage in
                 let completion = Scoreboards.personalBestCompletion
                 Scoreboards.personalBestCompletion = nil
@@ -45,7 +42,7 @@ extension Scoreboards {
         }
     }
 
-    /// Fetches the list of the game's boards.
+    /// Fetches the game's boards.
     @discardableResult
     public static func getScoreboards(completion: @escaping (Result<BoardsList, PlaydateError>) -> Void) -> Bool {
         boardsCompletion = completion
@@ -62,12 +59,12 @@ extension Scoreboards {
         }) != 0
     }
 
-    /// Fetches the scores on the board.
+    /// Fetches the scores on `boardID`.
     @discardableResult
     public static func getScores(boardID: String,
                                  completion: @escaping (Result<ScoresList, PlaydateError>) -> Void) -> Bool {
         scoresCompletion = completion
-        return boardID.withPlaydateCString { cBoardID in
+        return boardID.withCString { cBoardID in
             scoreboardsAPI.pointee.getScores.unsafelyUnwrapped(cBoardID, { scores, errorMessage in
                 let completion = Scoreboards.scoresCompletion
                 Scoreboards.scoresCompletion = nil

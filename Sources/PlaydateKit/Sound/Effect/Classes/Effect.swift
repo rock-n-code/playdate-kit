@@ -1,11 +1,9 @@
 internal import CPlaydate
 
-/// The cached `playdate->sound->effect` C API table.
 private var effectAPI: UnsafePointer<playdate_sound_effect> { Playdate.effectAPI.unsafelyUnwrapped }
 
 extension Sound {
-    /// An effect that processes a channel's audio: the base class of the
-    /// built-in effects. Wraps `SoundEffect`.
+    /// Processes a channel's audio; base of the built-in effects. Wraps `SoundEffect`.
     public class Effect {
         let pointer: OpaquePointer
         let isOwned: Bool
@@ -22,7 +20,7 @@ extension Sound {
             self.isOwned = isOwned
         }
 
-        /// Creates an effect that processes audio with a Swift callback.
+        /// Runs `processor` each audio cycle; keeps it alive until deinit.
         public init(processor: @escaping Processor) {
             let box = Unmanaged.passRetained(ProcessorBox(processor))
             processorBox = box
@@ -30,18 +28,15 @@ extension Sound {
                 guard let effect, let left,
                       let userdata = effectAPI.pointee.getUserdata.unsafelyUnwrapped(effect) else { return 0 }
                 let box = Unmanaged<ProcessorBox>.fromOpaque(userdata).takeUnretainedValue()
-                let leftBuffer = UnsafeMutableBufferPointer(start: left, count: Int(nsamples))
-                let rightBuffer = right.map { UnsafeMutableBufferPointer(start: $0, count: Int(nsamples)) }
-                return box.processor(leftBuffer, rightBuffer, bufactive != 0) ? 1 : 0
+                var leftSpan = UnsafeMutableBufferPointer(start: left, count: Int(nsamples)).mutableSpan
+                var rightSpan = UnsafeMutableBufferPointer(start: right, count: right == nil ? 0 : Int(nsamples)).mutableSpan
+                return box.processor(&leftSpan, &rightSpan, bufactive != 0) ? 1 : 0
             }, box.toOpaque()).unsafelyUnwrapped
             isOwned = true
         }
 
         deinit {
-            // Subclasses free the C object in their own deinit with the
-            // subsystem's type-specific free (freeDelayLine, freeOverdrive,
-            // ...); freeing here as well would double-free. The base class
-            // owns only the custom-processor effects it creates itself.
+            // Subclasses free their C object themselves; freeing here would double-free.
             if let processorBox {
                 if isOwned {
                     effectAPI.pointee.freeEffect.unsafelyUnwrapped(pointer)
@@ -50,12 +45,11 @@ extension Sound {
             }
         }
 
-        /// The wet/dry mix: 1 is fully processed, 0 fully dry.
+        /// Wet/dry mix: 0 leaves the effect out, 1 replaces the input with its output.
         public func setMix(_ level: Float) {
             effectAPI.pointee.setMix.unsafelyUnwrapped(pointer, level)
         }
 
-        /// Modulates the wet/dry mix.
         public var mixModulator: SignalValue? {
             get { SignalValue.wrap(effectAPI.pointee.getMixModulator.unsafelyUnwrapped(pointer)) }
             set {

@@ -1,18 +1,21 @@
 internal import CPlaydate
 
 extension System {
-    /// A calendar date and time, mirroring `PDDateTime`.
+    /// A calendar date and time. Mirrors `PDDateTime`.
     public struct DateTime: Sendable {
+        /// Full year, e.g. 2026.
         public var year: UInt16
-        /// 1...12
+        /// 1...12.
         public var month: UInt8
-        /// 1...31
+        /// 1...31.
         public var day: UInt8
-        /// 1 = Monday ... 7 = Sunday
+        /// 1 (Monday)...7 (Sunday); 0 when unset.
         public var weekday: UInt8
-        /// 0...23
+        /// 0...23.
         public var hour: UInt8
+        /// 0...59.
         public var minute: UInt8
+        /// 0...59.
         public var second: UInt8
 
         public init(year: UInt16, month: UInt8, day: UInt8, weekday: UInt8 = 0,

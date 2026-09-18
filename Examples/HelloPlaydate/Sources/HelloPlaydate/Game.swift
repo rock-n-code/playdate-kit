@@ -8,7 +8,7 @@
 import CPlaydate
 import PlaydateKit
 
-@_cdecl("eventHandler")
+@c(eventHandler)
 public func eventHandler(
     pointer: UnsafeMutableRawPointer,
     event: PDSystemEvent,

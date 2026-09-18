@@ -1,25 +1,20 @@
 internal import CPlaydate
 
-/// The cached `playdate->sprite` C API table.
 private var spriteAPI: UnsafePointer<playdate_sprite> { Playdate.spriteAPI.unsafelyUnwrapped }
 
-/// A sprite: a drawable object with position, z-order, and collision
-/// support. Wraps `LCDSprite`. Static members wrap the global sprite
-/// system functions.
-///
-/// The binding stores a back-reference to each `Sprite` wrapper in the
-/// underlying `LCDSprite`'s userdata slot, so callbacks and queries can
-/// recover the wrapper. Do not mix these wrappers with C code that sets
-/// its own sprite userdata; use `userdata` for per-sprite storage instead.
+/// A drawable object with position, z-order, and collisions. Wraps `LCDSprite`; static
+/// members wrap the global sprite functions. Retains its image, stencil, tilemap, closures.
+/// The C userdata slot holds the wrapper back-reference; don't set it from C (use `userdata`).
+/// `add()` retains the sprite until `remove()`/`removeAll()`. Owned sprites free their
+/// `LCDSprite` on deinit; sprites created elsewhere get transient, non-owning wrappers.
 public final class Sprite {
     let pointer: OpaquePointer
     let isOwned: Bool
 
-    /// Position in the static `displayList`, or -1 when not in it; makes
-    /// `add()`/`remove()` O(1) instead of scanning the list.
+    /// Index in `displayList`, or -1 when absent; makes `add()`/`remove()` O(1).
     private var displayListIndex = -1
 
-    /// Per-sprite callbacks and retained resources.
+    /// Called by the C trampolines; resources retained so C never points at freed ones.
     var updateFunction: ((Sprite) -> Void)?
     var drawFunction: ((Sprite, _ bounds: Rect, _ drawRect: Rect) -> Void)?
     var collisionResponseFunction: ((Sprite, _ other: Sprite) -> CollisionResponse)?
@@ -27,22 +22,19 @@ public final class Sprite {
     private var retainedStencil: Graphics.Bitmap?
     private var retainedTilemap: Graphics.TileMap?
 
-    /// Free-form storage for game use (the C userdata slot is reserved
-    /// by the binding).
+    /// Free-form game storage. Not copied by `copy()`.
     public var userdata: AnyObject?
 
     init(pointer: OpaquePointer, isOwned: Bool) {
         self.pointer = pointer
         self.isOwned = isOwned
-        // Transient wrappers for sprites created outside the binding must not
-        // store a back-reference: it would dangle once the wrapper is
-        // deallocated, and only owned wrappers clear it in `deinit`.
+        // Only owned wrappers clear the back-reference in deinit; others would dangle.
         if isOwned {
             spriteAPI.pointee.setUserdata.unsafelyUnwrapped(pointer, Unmanaged.passUnretained(self).toOpaque())
         }
     }
 
-    /// Allocates a new sprite.
+    /// Allocates a sprite, not yet in the display list.
     public convenience init() {
         self.init(pointer: spriteAPI.pointee.newSprite.unsafelyUnwrapped().unsafelyUnwrapped, isOwned: true)
     }
@@ -54,8 +46,7 @@ public final class Sprite {
         }
     }
 
-    /// Returns the Swift wrapper stored in the sprite's userdata, or a
-    /// transient unowned wrapper for sprites created outside the binding.
+    /// The stored wrapper, or a transient non-owning one for sprites created elsewhere.
     static func wrapper(for pointer: OpaquePointer) -> Sprite {
         if let userdata = spriteAPI.pointee.getUserdata.unsafelyUnwrapped(pointer) {
             return Unmanaged<Sprite>.fromOpaque(userdata).takeUnretainedValue()
@@ -63,8 +54,7 @@ public final class Sprite {
         return Sprite(pointer: pointer, isOwned: false)
     }
 
-    /// Copies the sprite. Callbacks and retained resources are carried
-    /// over to the copy.
+    /// Also copies callbacks and the retained image, stencil, and tilemap; not `userdata`.
     public func copy() -> Sprite {
         let copy = Sprite(pointer: spriteAPI.pointee.copy.unsafelyUnwrapped(pointer).unsafelyUnwrapped,
                           isOwned: true)
@@ -77,38 +67,36 @@ public final class Sprite {
         return copy
     }
 
-    // MARK: - Display list
+    // MARK: - Display list and drawing
 
-    /// Sprites currently added to the display list, kept alive here.
+    /// Keeps added sprites alive while the C display list references them.
     nonisolated(unsafe) private static var displayList: [Sprite] = []
 
-    /// When `true`, all sprites redraw every frame instead of only when
-    /// marked dirty.
+    /// `true` redraws all sprites every frame; can be faster with many moving sprites.
     public static func setAlwaysRedraw(_ flag: Bool) {
         spriteAPI.pointee.setAlwaysRedraw.unsafelyUnwrapped(flag ? 1 : 0)
     }
 
-    /// Marks the given screen region as needing a redraw.
+    /// Marks `rect` (screen coordinates) dirty. Graphics drawing calls do this already.
     public static func addDirtyRect(_ rect: Graphics.Rect) {
         spriteAPI.pointee.addDirtyRect.unsafelyUnwrapped(rect.cValue)
     }
 
-    /// Draws every sprite in the display list.
     public static func drawAll() {
         spriteAPI.pointee.drawSprites.unsafelyUnwrapped()
     }
 
-    /// Updates and then draws every sprite in the display list.
+    /// Calls each sprite's update function, then draws all sprites.
     public static func updateAndDrawAll() {
         spriteAPI.pointee.updateAndDrawSprites.unsafelyUnwrapped()
     }
 
-    /// The number of sprites in the display list.
+    /// Number of sprites in the display list.
     public static var count: Int {
         Int(spriteAPI.pointee.getSpriteCount.unsafelyUnwrapped())
     }
 
-    /// Adds the sprite to the display list.
+    /// Adds to the display list; repeated adds retain only once.
     public func add() {
         spriteAPI.pointee.addSprite.unsafelyUnwrapped(pointer)
         if displayListIndex < 0 {
@@ -117,12 +105,10 @@ public final class Sprite {
         }
     }
 
-    /// Removes the sprite from the display list.
     public func remove() {
         spriteAPI.pointee.removeSprite.unsafelyUnwrapped(pointer)
         guard displayListIndex >= 0 else { return }
-        // Swap-remove: the keep-alive list is unordered (the OS keeps the
-        // draw order), so the last sprite can take the vacated slot.
+        // Swap-remove: the keep-alive list is unordered (the OS keeps draw order).
         let index = displayListIndex
         let last = Sprite.displayList.removeLast()
         if last !== self {
@@ -132,12 +118,10 @@ public final class Sprite {
         displayListIndex = -1
     }
 
-    /// Removes the given sprites from the display list.
     public static func remove(_ sprites: [Sprite]) {
         for sprite in sprites { sprite.remove() }
     }
 
-    /// Removes every sprite from the display list.
     public static func removeAll() {
         spriteAPI.pointee.removeAllSprites.unsafelyUnwrapped()
         for sprite in displayList { sprite.displayListIndex = -1 }
@@ -146,36 +130,34 @@ public final class Sprite {
 
     // MARK: - Geometry
 
-    /// The sprite's bounds. Setting this positions and sizes the sprite.
     public var bounds: Rect {
         get { Rect(spriteAPI.pointee.getBounds.unsafelyUnwrapped(pointer)) }
         set { spriteAPI.pointee.setBounds.unsafelyUnwrapped(pointer, newValue.cValue) }
     }
 
-    /// Moves the sprite so its anchor point is at (x, y).
+    /// Moves so `center` is at (`x`, `y`), recomputing bounds from size and `center`.
     public func moveTo(x: Float, y: Float) {
         spriteAPI.pointee.moveTo.unsafelyUnwrapped(pointer, x, y)
     }
 
-    /// Moves the sprite by (dx, dy).
     public func moveBy(dx: Float, dy: Float) {
         spriteAPI.pointee.moveBy.unsafelyUnwrapped(pointer, dx, dy)
     }
 
-    /// The sprite's anchor position.
+    /// Where the sprite's `center` point is.
     public var position: (x: Float, y: Float) {
         var x: Float = 0, y: Float = 0
         spriteAPI.pointee.getPosition.unsafelyUnwrapped(pointer, &x, &y)
         return (x, y)
     }
 
-    /// Sets the sprite's size without changing its image.
+    /// Size `moveTo(x:y:)` uses to compute bounds.
     public func setSize(width: Float, height: Float) {
         spriteAPI.pointee.setSize.unsafelyUnwrapped(pointer, width, height)
     }
 
-    /// The anchor point used for positioning, where (0, 0) is the top
-    /// left and (1, 1) the bottom right. Defaults to (0.5, 0.5).
+    /// Drawing center as a 0...1 fraction of size; (0, 0) is top left, (1, 1) bottom right.
+    /// Default (0.5, 0.5).
     public var center: (x: Float, y: Float) {
         get {
             var x: Float = 0, y: Float = 0
@@ -185,7 +167,7 @@ public final class Sprite {
         set { spriteAPI.pointee.setCenter.unsafelyUnwrapped(pointer, newValue.x, newValue.y) }
     }
 
-    /// Draw order: higher values draw on top.
+    /// Higher values draw on top.
     public var zIndex: Int16 {
         get { spriteAPI.pointee.getZIndex.unsafelyUnwrapped(pointer) }
         set { spriteAPI.pointee.setZIndex.unsafelyUnwrapped(pointer, newValue) }
@@ -193,20 +175,20 @@ public final class Sprite {
 
     // MARK: - Appearance
 
-    /// Sets the sprite's image, resizing its bounds to match.
+    /// Sets the image, drawn with `flip`, and resizes bounds to match; `nil` removes it.
     public func setImage(_ image: Graphics.Bitmap?, flip: Graphics.BitmapFlip = .unflipped) {
         retainedImage = image
         spriteAPI.pointee.setImage.unsafelyUnwrapped(pointer, image?.pointer, flip.cValue)
     }
 
-    /// The sprite's image.
+    /// The image from `setImage(_:flip:)`, else a non-owning wrapper of the C one, or `nil`.
     public var image: Graphics.Bitmap? {
         if let retainedImage { return retainedImage }
         guard let image = spriteAPI.pointee.getImage.unsafelyUnwrapped(pointer) else { return nil }
         return Graphics.Bitmap(pointer: image, isOwned: false)
     }
 
-    /// Sets the sprite's tilemap, resizing its bounds to match.
+    /// The tilemap set here. Setting resizes bounds to match; `nil` removes it.
     public var tilemap: Graphics.TileMap? {
         get { retainedTilemap }
         set {
@@ -215,32 +197,39 @@ public final class Sprite {
         }
     }
 
-    /// The mode used to draw the sprite's image.
     public func setDrawMode(_ mode: Graphics.DrawMode) {
         spriteAPI.pointee.setDrawMode.unsafelyUnwrapped(pointer, mode.cValue)
     }
 
-    /// How the sprite's image is mirrored when drawn.
     public var imageFlip: Graphics.BitmapFlip {
         get { Graphics.BitmapFlip(spriteAPI.pointee.getImageFlip.unsafelyUnwrapped(pointer)) }
         set { spriteAPI.pointee.setImageFlip.unsafelyUnwrapped(pointer, newValue.cValue) }
     }
 
-    /// Sets the stencil applied when drawing the sprite. If `tile` is
-    /// `true` the image width must be a multiple of 32.
+    /// Pixels draw only where `stencil` is white. Screen space: it doesn't move with the
+    /// sprite. `nil` clears it. With `tile`, it repeats; width must be a multiple of 32.
     public func setStencil(_ stencil: Graphics.Bitmap?, tile: Bool = false) {
         retainedStencil = stencil
         spriteAPI.pointee.setStencilImage.unsafelyUnwrapped(pointer, stencil?.pointer, tile ? 1 : 0)
     }
 
-    /// Sets an 8×8 stencil pattern (8 rows of image data).
+    /// Sets an 8×8 stencil pattern, one byte per row.
     public func setStencilPattern(_ rows: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8)) {
-        // The tuple is already 8 contiguous bytes; the C side copies the
-        // pattern, so passing the stack storage directly is safe.
+        // The tuple is 8 contiguous bytes and C copies them, so stack storage is safe.
         withUnsafeBytes(of: rows) { buffer in
             let pattern = UnsafeMutablePointer(
                 mutating: buffer.baseAddress.unsafelyUnwrapped.assumingMemoryBound(to: UInt8.self))
             spriteAPI.pointee.setStencilPattern.unsafelyUnwrapped(pointer, pattern)
+        }
+    }
+
+    /// `InlineArray` overload of the tuple variant.
+    @available(macOS 26, *)
+    public func setStencilPattern(_ rows: [8 of UInt8]) {
+        // C copies the pattern, so passing the inline array's storage is safe.
+        rows.span.withUnsafeBufferPointer { buffer in
+            spriteAPI.pointee.setStencilPattern.unsafelyUnwrapped(
+                pointer, UnsafeMutablePointer(mutating: buffer.baseAddress))
         }
     }
 
@@ -249,7 +238,7 @@ public final class Sprite {
         spriteAPI.pointee.clearStencil.unsafelyUnwrapped(pointer)
     }
 
-    /// Clips the sprite's drawing to `rect` (screen coordinates).
+    /// `rect` is in screen coordinates.
     public func setClipRect(_ rect: Graphics.Rect) {
         spriteAPI.pointee.setClipRect.unsafelyUnwrapped(pointer, rect.cValue)
     }
@@ -258,67 +247,63 @@ public final class Sprite {
         spriteAPI.pointee.clearClipRect.unsafelyUnwrapped(pointer)
     }
 
-    /// Clips all sprites with z-index in `startZ...endZ` to `rect`.
+    /// Clips sprites with a z-index in `startZ...endZ` (inclusive) to `rect`.
     public static func setClipRectsInRange(_ rect: Graphics.Rect, startZ: Int, endZ: Int) {
         spriteAPI.pointee.setClipRectsInRange.unsafelyUnwrapped(rect.cValue, Int32(startZ), Int32(endZ))
     }
 
+    /// Clears clip rects of sprites with a z-index in `startZ...endZ` (inclusive).
     public static func clearClipRectsInRange(startZ: Int, endZ: Int) {
         spriteAPI.pointee.clearClipRectsInRange.unsafelyUnwrapped(Int32(startZ), Int32(endZ))
     }
 
-    // MARK: - Behavior flags
+    // MARK: - Flags, redraw, and tag
 
-    /// Whether the sprite's update function is called by `updateAndDrawAll()`.
+    /// Whether `updateAndDrawAll()` calls the update function.
     public var updatesEnabled: Bool {
         get { spriteAPI.pointee.updatesEnabled.unsafelyUnwrapped(pointer) != 0 }
         set { spriteAPI.pointee.setUpdatesEnabled.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }
     }
 
-    /// Whether the sprite participates in collisions.
+    /// Also requires a `collideRect`. Default `true`.
     public var collisionsEnabled: Bool {
         get { spriteAPI.pointee.collisionsEnabled.unsafelyUnwrapped(pointer) != 0 }
         set { spriteAPI.pointee.setCollisionsEnabled.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }
     }
 
-    /// Whether the sprite is drawn.
     public var isVisible: Bool {
         get { spriteAPI.pointee.isVisible.unsafelyUnwrapped(pointer) != 0 }
         set { spriteAPI.pointee.setVisible.unsafelyUnwrapped(pointer, newValue ? 1 : 0) }
     }
 
-    /// Marking a sprite opaque tells the system it does not need to redraw
-    /// anything behind it.
+    /// Opaque sprites hide what's behind them. Set automatically for images without a mask.
     public func setOpaque(_ flag: Bool) {
         spriteAPI.pointee.setOpaque.unsafelyUnwrapped(pointer, flag ? 1 : 0)
     }
 
-    /// Forces the sprite to redraw this frame.
     public func markDirty() {
         spriteAPI.pointee.markDirty.unsafelyUnwrapped(pointer)
     }
 
-    /// Marks part of the sprite (in sprite-local coordinates) as needing
-    /// a redraw.
+    /// `rect` is relative to the sprite's top-left corner.
     public func markDirty(rect: Rect) {
         spriteAPI.pointee.markDirtyRect.unsafelyUnwrapped(pointer, rect.cValue)
     }
 
-    /// An integer tag for identifying sprites (e.g. in collisions).
+    /// Game-defined tag, 0–255, e.g. for collision handling.
     public var tag: UInt8 {
         get { spriteAPI.pointee.getTag.unsafelyUnwrapped(pointer) }
         set { spriteAPI.pointee.setTag.unsafelyUnwrapped(pointer, newValue) }
     }
 
-    /// When `true`, the sprite draws in screen coordinates, ignoring the
-    /// global draw offset.
+    /// `true` draws in screen coordinates; collisions stay in world space.
     public func setIgnoresDrawOffset(_ flag: Bool) {
         spriteAPI.pointee.setIgnoresDrawOffset.unsafelyUnwrapped(pointer, flag ? 1 : 0)
     }
 
     // MARK: - Callbacks
 
-    /// Sets the function called by `updateAndDrawAll()` for this sprite.
+    /// Called by `updateAndDrawAll()`; `nil` removes it.
     public func setUpdateFunction(_ update: ((Sprite) -> Void)?) {
         updateFunction = update
         if update != nil {
@@ -332,9 +317,8 @@ public final class Sprite {
         }
     }
 
-    /// Sets a custom draw function, called when the sprite needs to draw.
-    /// `bounds` is the sprite's bounds; `drawRect` is the region that
-    /// needs redrawing.
+    /// Receives `bounds` and the dirty `drawRect`; `nil` removes it. Runs only while on
+    /// screen with a size (from `setSize(width:height:)` or `bounds`).
     public func setDrawFunction(_ draw: ((Sprite, _ bounds: Rect, _ drawRect: Rect) -> Void)?) {
         drawFunction = draw
         if draw != nil {
@@ -350,12 +334,12 @@ public final class Sprite {
 
     // MARK: - Collisions
 
-    /// Clears the collision world. Call when changing scenes.
+    /// Frees and reallocates the collision data, resetting it. Call when changing scenes.
     public static func resetCollisionWorld() {
         spriteAPI.pointee.resetCollisionWorld.unsafelyUnwrapped()
     }
 
-    /// The rect (in sprite-local coordinates) used for collisions.
+    /// Relative to the sprite's bounds.
     public var collideRect: Rect {
         get { Rect(spriteAPI.pointee.getCollideRect.unsafelyUnwrapped(pointer)) }
         set { spriteAPI.pointee.setCollideRect.unsafelyUnwrapped(pointer, newValue.cValue) }
@@ -365,8 +349,7 @@ public final class Sprite {
         spriteAPI.pointee.clearCollideRect.unsafelyUnwrapped(pointer)
     }
 
-    /// Sets the function deciding how this sprite responds when it
-    /// collides with `other`.
+    /// Chooses this sprite's response when colliding with `other`; `nil` removes it.
     public func setCollisionResponseFunction(_ filter: ((Sprite, _ other: Sprite) -> CollisionResponse)?) {
         collisionResponseFunction = filter
         if filter != nil {
@@ -381,7 +364,7 @@ public final class Sprite {
         }
     }
 
-    /// Visits and frees a C collision info array.
+    /// Visits each entry of a C collision array, then frees it (C transfers ownership).
     private static func visitCollisions(_ pointer: UnsafeMutablePointer<SpriteCollisionInfo>?,
                                         count: Int32, _ visit: (CollisionInfo) -> Void) {
         guard let pointer else { return }
@@ -400,8 +383,7 @@ public final class Sprite {
         return infos
     }
 
-    /// Returns the collisions that would occur if the sprite moved toward
-    /// (goalX, goalY), without moving it.
+    /// Where a move toward the goal would end and what it would hit, without moving.
     public func checkCollisions(goalX: Float, goalY: Float)
         -> (actual: (x: Float, y: Float), collisions: [CollisionInfo]) {
         var actualX: Float = 0, actualY: Float = 0, count: Int32 = 0
@@ -410,8 +392,7 @@ public final class Sprite {
         return ((actualX, actualY), Sprite.collisionInfos(result, count: count))
     }
 
-    /// Like `checkCollisions(goalX:goalY:)`, but visits each collision
-    /// instead of building an array, avoiding per-call allocations.
+    /// Like `checkCollisions(goalX:goalY:)`, but visits each collision without allocating.
     public func checkCollisions(goalX: Float, goalY: Float,
                                 _ visit: (CollisionInfo) -> Void) -> (x: Float, y: Float) {
         var actualX: Float = 0, actualY: Float = 0, count: Int32 = 0
@@ -421,8 +402,8 @@ public final class Sprite {
         return (actualX, actualY)
     }
 
-    /// Moves the sprite toward (goalX, goalY), resolving collisions, and
-    /// returns where it ended up and what it hit.
+    /// Moves toward the goal, resolving collisions. Returns the final position (the goal if
+    /// nothing was hit) and the collisions.
     @discardableResult
     public func moveWithCollisions(goalX: Float, goalY: Float)
         -> (actual: (x: Float, y: Float), collisions: [CollisionInfo]) {
@@ -432,8 +413,7 @@ public final class Sprite {
         return ((actualX, actualY), Sprite.collisionInfos(result, count: count))
     }
 
-    /// Like `moveWithCollisions(goalX:goalY:)`, but visits each collision
-    /// instead of building an array, avoiding per-call allocations.
+    /// Like `moveWithCollisions(goalX:goalY:)`, but visits collisions without allocating.
     @discardableResult
     public func moveWithCollisions(goalX: Float, goalY: Float,
                                    _ visit: (CollisionInfo) -> Void) -> (x: Float, y: Float) {
@@ -444,7 +424,7 @@ public final class Sprite {
         return (actualX, actualY)
     }
 
-    /// Visits and frees a C sprite pointer array.
+    /// Visits non-null entries of a C sprite array, then frees it (C transfers ownership).
     private static func visitSprites(_ pointer: UnsafeMutablePointer<OpaquePointer?>?,
                                      count: Int32, _ visit: (Sprite) -> Void) {
         guard let pointer else { return }
@@ -465,30 +445,28 @@ public final class Sprite {
         return sprites
     }
 
-    /// Sprites with collision rects containing the point.
+    /// Sprites whose collide rects contain (`x`, `y`).
     public static func query(atPoint x: Float, _ y: Float) -> [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.querySpritesAtPoint.unsafelyUnwrapped(x, y, &count)
         return sprites(result, count: count)
     }
 
-    /// Like `query(atPoint:_:)`, visiting each sprite without building an
-    /// array.
+    /// Like `query(atPoint:_:)`, but visits each sprite without allocating.
     public static func query(atPoint x: Float, _ y: Float, _ visit: (Sprite) -> Void) {
         var count: Int32 = 0
         let result = spriteAPI.pointee.querySpritesAtPoint.unsafelyUnwrapped(x, y, &count)
         visitSprites(result, count: count, visit)
     }
 
-    /// Sprites with collision rects intersecting the rect.
+    /// Sprites whose collide rects intersect the `width` × `height` rect at (`x`, `y`).
     public static func query(inRect x: Float, _ y: Float, width: Float, height: Float) -> [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.querySpritesInRect.unsafelyUnwrapped(x, y, width, height, &count)
         return sprites(result, count: count)
     }
 
-    /// Like `query(inRect:_:width:height:)`, visiting each sprite without
-    /// building an array.
+    /// Like `query(inRect:_:width:height:)`, but visits each sprite without allocating.
     public static func query(inRect x: Float, _ y: Float, width: Float, height: Float,
                              _ visit: (Sprite) -> Void) {
         var count: Int32 = 0
@@ -496,15 +474,14 @@ public final class Sprite {
         visitSprites(result, count: count, visit)
     }
 
-    /// Sprites with collision rects intersecting the line segment.
+    /// Sprites whose collide rects intersect the segment (`x1`, `y1`)–(`x2`, `y2`).
     public static func query(alongLine x1: Float, _ y1: Float, _ x2: Float, _ y2: Float) -> [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.querySpritesAlongLine.unsafelyUnwrapped(x1, y1, x2, y2, &count)
         return sprites(result, count: count)
     }
 
-    /// Like `query(alongLine:_:_:_:)`, visiting each sprite without building
-    /// an array.
+    /// Like `query(alongLine:_:_:_:)`, but visits each sprite without allocating.
     public static func query(alongLine x1: Float, _ y1: Float, _ x2: Float, _ y2: Float,
                              _ visit: (Sprite) -> Void) {
         var count: Int32 = 0
@@ -512,7 +489,7 @@ public final class Sprite {
         visitSprites(result, count: count, visit)
     }
 
-    /// Like `query(alongLine:)`, with entry/exit information for each sprite.
+    /// Like `query(alongLine:_:_:_:)`, plus entry/exit details. Slower; use only if needed.
     public static func queryInfo(alongLine x1: Float, _ y1: Float,
                                  _ x2: Float, _ y2: Float) -> [QueryInfo] {
         var count: Int32 = 0
@@ -527,30 +504,28 @@ public final class Sprite {
         return infos
     }
 
-    /// Sprites whose collision rects overlap this sprite's.
+    /// Sprites whose collide rects overlap this sprite's.
     public var overlappingSprites: [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.overlappingSprites.unsafelyUnwrapped(pointer, &count)
         return Sprite.sprites(result, count: count)
     }
 
-    /// Like `overlappingSprites`, visiting each sprite without building an
-    /// array.
+    /// Like `overlappingSprites`, but visits each sprite without allocating.
     public func overlappingSprites(_ visit: (Sprite) -> Void) {
         var count: Int32 = 0
         let result = spriteAPI.pointee.overlappingSprites.unsafelyUnwrapped(pointer, &count)
         Sprite.visitSprites(result, count: count, visit)
     }
 
-    /// All sprites in the display list that overlap another sprite.
+    /// All overlapping sprites as consecutive pairs: [0] and [1] overlap, [2] and [3], etc.
     public static var allOverlappingSprites: [Sprite] {
         var count: Int32 = 0
         let result = spriteAPI.pointee.allOverlappingSprites.unsafelyUnwrapped(&count)
         return sprites(result, count: count)
     }
 
-    /// Like `allOverlappingSprites`, visiting each sprite without building
-    /// an array.
+    /// Like `allOverlappingSprites`, but visits sprites (same pair order) without allocating.
     public static func allOverlappingSprites(_ visit: (Sprite) -> Void) {
         var count: Int32 = 0
         let result = spriteAPI.pointee.allOverlappingSprites.unsafelyUnwrapped(&count)

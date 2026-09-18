@@ -1,25 +1,17 @@
 public import CPlaydate
 
-/// The raw C API bootstrap.
-///
-/// The C API is delivered as a `PlaydateAPI` struct of function pointers
-/// that the firmware hands to the game's `eventHandler` entry point. Call
-/// `initialize(with:)` from that entry point before using any other API in
-/// this module. Everything else (System, Graphics, Sprite, Sound, ...)
-/// lives at the top level of the `PlaydateKit` module.
+/// Raw C API bootstrap. The firmware passes the `PlaydateAPI` table to the game's
+/// `eventHandler`; call `initialize(with:)` there before any other API in this module.
+/// The wrappers (`System`, `Graphics`, `Sprite`, `Sound`, ...) are top-level.
 public enum Playdate {
-    /// The raw C API. Populated by `initialize(with:)`.
-    ///
-    /// Access is unsynchronized: the Playdate runtime is single-threaded and
-    /// the API pointer is written exactly once at startup.
+    /// Copy of the C API table; `nil` until `initialize(with:)`. Unsynchronized: the
+    /// runtime is single-threaded and this is written once at startup.
     public internal(set) nonisolated(unsafe) static var api: PlaydateAPI!
 
-    /// The raw C API pointer handed to `initialize(with:)`, for calls that
-    /// need to pass the `PlaydateAPI*` back to C.
+    /// The pointer passed to `initialize(with:)`, for C calls that take it; `nil` until then.
     public internal(set) nonisolated(unsafe) static var apiPointer: UnsafeMutablePointer<PlaydateAPI>!
 
-    // Sub-API pointers cached once at initialization, so wrapper calls are a
-    // single field load off a pointer instead of re-walking `api` per call.
+    // Cached so each wrapper call is one field load instead of re-walking `api`.
     nonisolated(unsafe) static var systemAPI: UnsafePointer<playdate_sys>!
     nonisolated(unsafe) static var displayAPI: UnsafePointer<playdate_display>!
     nonisolated(unsafe) static var graphicsAPI: UnsafePointer<playdate_graphics>!
@@ -31,10 +23,8 @@ public enum Playdate {
     nonisolated(unsafe) static var scoreboardsAPI: UnsafePointer<playdate_scoreboards>!
     nonisolated(unsafe) static var networkAPI: UnsafePointer<playdate_network>!
 
-    // Second-level tables, cached for the same reason. Assigned with
-    // optional chaining because partial API tables (e.g. test mocks) may
-    // leave some of them null; using an absent table traps at the call
-    // site, as before.
+    // Optional chaining tolerates partial tables (e.g. test mocks) with a null parent;
+    // using a missing table traps at the call site.
     nonisolated(unsafe) static var tilemapAPI: UnsafePointer<playdate_tilemap>!
     nonisolated(unsafe) static var videoAPI: UnsafePointer<playdate_video>!
     nonisolated(unsafe) static var videoStreamAPI: UnsafePointer<playdate_videostream>!
@@ -61,10 +51,8 @@ public enum Playdate {
     nonisolated(unsafe) static var httpAPI: UnsafePointer<playdate_http>!
     nonisolated(unsafe) static var tcpAPI: UnsafePointer<playdate_tcp>!
 
-    /// Stores the API pointer handed to the game's `eventHandler`.
-    ///
-    /// Call this first, on the `.initialize` event, before using any other
-    /// wrapper in this module.
+    /// Stores the `eventHandler`'s `PlaydateAPI*` and caches its sub-tables. Call on the
+    /// `.initialize` event, before any other API in this module.
     public static func initialize(with pointer: UnsafeMutableRawPointer) {
         apiPointer = pointer.assumingMemoryBound(to: PlaydateAPI.self)
         api = apiPointer.pointee

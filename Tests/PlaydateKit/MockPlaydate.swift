@@ -24,8 +24,10 @@ enum Mock {
     nonisolated(unsafe) static let soundEffectAPI = UnsafeMutablePointer<playdate_sound_effect>.allocate(capacity: 1)
     nonisolated(unsafe) static let lfoAPI = UnsafeMutablePointer<playdate_sound_lfo>.allocate(capacity: 1)
     nonisolated(unsafe) static let delayLineAPI = UnsafeMutablePointer<playdate_sound_effect_delayline>.allocate(capacity: 1)
+    nonisolated(unsafe) static let tilemapAPI = UnsafeMutablePointer<playdate_tilemap>.allocate(capacity: 1)
     nonisolated(unsafe) static let fileAPI = UnsafeMutablePointer<playdate_file>.allocate(capacity: 1)
     nonisolated(unsafe) static let jsonAPI = UnsafeMutablePointer<playdate_json>.allocate(capacity: 1)
+    nonisolated(unsafe) static let networkAPI = UnsafeMutablePointer<playdate_network>.allocate(capacity: 1)
     nonisolated(unsafe) static let apiStruct = UnsafeMutablePointer<PlaydateAPI>.allocate(capacity: 1)
 
     // MARK: - Recordings
@@ -35,6 +37,18 @@ enum Mock {
     nonisolated(unsafe) static var buttonState: (current: UInt32, pushed: UInt32, released: UInt32) = (0, 0, 0)
     /// The 16 bytes behind the last pattern `LCDColor` seen by a stub.
     nonisolated(unsafe) static var patternBytes: [UInt8] = []
+    /// The 8 rows last handed to `setStencilPattern`.
+    nonisolated(unsafe) static var stencilRows: [UInt8] = []
+    /// Caps the bytes a file read returns (0 = end of file, negative =
+    /// error); `nil` fills the whole request.
+    nonisolated(unsafe) static var fileReadLimit: Int32?
+    /// Bytes left to read before 0 (end of file); `nil` never ends.
+    nonisolated(unsafe) static var fileBytesRemaining: Int32?
+    /// The last `network->setEnabled` callback.
+    nonisolated(unsafe) static var networkEnabledCallback: (@convention(c) (PDNetErr) -> Void)?
+    /// The index buffer and count last handed to `setTiles`.
+    nonisolated(unsafe) static var tilesPointer: UnsafeMutablePointer<UInt16>?
+    nonisolated(unsafe) static var tilesCount: Int32 = 0
     /// Userdata stored per sprite / menu item, as the OS would keep it.
     nonisolated(unsafe) static var spriteUserdata: [OpaquePointer: UnsafeMutableRawPointer] = [:]
     nonisolated(unsafe) static var menuUserdata: [OpaquePointer: UnsafeMutableRawPointer] = [:]
@@ -83,6 +97,12 @@ enum Mock {
         events = []
         buttonState = (0, 0, 0)
         patternBytes = []
+        stencilRows = []
+        fileReadLimit = nil
+        fileBytesRemaining = nil
+        networkEnabledCallback = nil
+        tilesPointer = nil
+        tilesCount = 0
         spriteUserdata = [:]
         menuUserdata = [:]
         menuCallback = nil
@@ -102,6 +122,7 @@ enum Mock {
         installSound()
         installFile()
         installJSON()
+        installNetwork()
         apiStruct.initialize(to: PlaydateAPI(
             system: UnsafePointer(sysAPI),
             file: UnsafePointer(fileAPI),
@@ -112,7 +133,7 @@ enum Mock {
             lua: nil,
             json: UnsafePointer(jsonAPI),
             scoreboards: nil,
-            network: nil))
+            network: UnsafePointer(networkAPI)))
         Playdate.initialize(with: UnsafeMutableRawPointer(apiStruct))
     }
 
@@ -170,6 +191,19 @@ enum Mock {
 
     private static func installGraphics() {
         gfxAPI.initialize(to: playdate_graphics())
+        tilemapAPI.initialize(to: playdate_tilemap())
+        gfxAPI.pointee.tilemap = UnsafePointer(tilemapAPI)
+
+        tilemapAPI.pointee.newTilemap = {
+            Mock.record("newTilemap")
+            return Mock.fakePointer()
+        }
+        tilemapAPI.pointee.freeTilemap = { _ in Mock.record("freeTilemap") }
+        tilemapAPI.pointee.setTiles = { _, indexes, count, rowWidth in
+            Mock.record("setTiles(\(count),\(rowWidth))")
+            Mock.tilesPointer = indexes
+            Mock.tilesCount = count
+        }
 
         gfxAPI.pointee.fillRect = { x, y, width, height, color in
             if color > 3, let pattern = UnsafeRawPointer(bitPattern: color) {
@@ -193,6 +227,10 @@ enum Mock {
         }
         gfxAPI.pointee.freeBitmap = { _ in
             Mock.record("freeBitmap")
+        }
+        gfxAPI.pointee.getBitmapMask = { _ in
+            Mock.record("getBitmapMask")
+            return Mock.fakePointer()
         }
 
         gfxAPI.pointee.newBitmapTable = { count, width, height in
@@ -222,6 +260,9 @@ enum Mock {
         spriteAPI.pointee.newSprite = {
             Mock.record("newSprite")
             return Mock.fakePointer()
+        }
+        spriteAPI.pointee.setStencilPattern = { _, pattern in
+            Mock.stencilRows = Array(UnsafeBufferPointer(start: pattern, count: 8))
         }
         spriteAPI.pointee.freeSprite = { _ in
             Mock.record("freeSprite")
@@ -400,13 +441,28 @@ enum Mock {
             return 0
         }
         fileAPI.pointee.read = { _, buffer, length in
-            memset(buffer, 0xAB, Int(length))
             Mock.record("read(\(length))")
-            return Int32(length)
+            var count = min(Int32(length), Mock.fileReadLimit ?? Int32(length))
+            if let remaining = Mock.fileBytesRemaining {
+                count = min(count, remaining)
+                Mock.fileBytesRemaining = remaining - max(count, 0)
+            }
+            if count > 0 { memset(buffer, 0xAB, Int(count)) }
+            return count
         }
         fileAPI.pointee.write = { _, _, length in
             Mock.record("write(\(length))")
             return Int32(length)
+        }
+    }
+
+    // MARK: - Network
+
+    private static func installNetwork() {
+        networkAPI.initialize(to: playdate_network())
+        networkAPI.pointee.setEnabled = { flag, callback in
+            Mock.record("setEnabled(\(flag),\(callback == nil ? "nil" : "callback"))")
+            Mock.networkEnabledCallback = callback
         }
     }
 
@@ -416,6 +472,23 @@ enum Mock {
     /// `{"level": 3, "name": "up", "list": [1, true]}` regardless of input.
     private static func installJSON() {
         jsonAPI.initialize(to: playdate_json())
+
+        // Reads until the reader returns 0 or less, then decodes `null`.
+        jsonAPI.pointee.decode = { _, reader, outval in
+            var buffer = [UInt8](repeating: 0, count: 16)
+            var total: Int32 = 0, last: Int32 = 0
+            for _ in 0..<64 {
+                last = buffer.withUnsafeMutableBufferPointer { buffer in
+                    reader.read?(reader.userdata, buffer.baseAddress, Int32(buffer.count)) ?? -1
+                }
+                guard last > 0 else { break }
+                total += last
+            }
+            Mock.record("decode(total:\(total),end:\(last))")
+            outval?.pointee = json_value()
+            outval?.pointee.type = CChar(kJSONNull.rawValue)
+            return 1
+        }
 
         jsonAPI.pointee.decodeString = { decoder, _, outval in
             guard let decoder else { return 0 }

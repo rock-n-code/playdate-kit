@@ -1,36 +1,31 @@
 public import CPlaydate
 
-/// A Swift view of `PDSystemEvent` with the key code folded into the
-/// key events.
+/// An event sent to the game's `eventHandler`. Wraps `PDSystemEvent`; key events carry
+/// the event argument.
 public enum SystemEvent {
-    /// Sent once at startup, before the first update.
+    /// Once after the game loads, before the first update.
     case initialize
-    /// Sent when the Lua runtime is ready, for registering custom
-    /// functions and classes.
+    /// After `initialize` if no update callback is set, once Lua exists and before
+    /// `main.lua` runs; register Lua functions and classes here.
     case initializeLua
-    /// The device was locked.
     case lock
-    /// The device was unlocked.
     case unlock
-    /// The game was paused (e.g. the system menu opened).
+    /// E.g. the system menu opened.
     case pause
-    /// The game resumed after a pause.
     case resume
-    /// The game is about to be terminated.
     case terminate
-    /// A simulator key was pressed.
+    /// Simulator only.
     case keyPressed(keyCode: UInt32)
-    /// A simulator key was released.
+    /// Simulator only.
     case keyReleased(keyCode: UInt32)
-    /// The device is about to power down because the battery is low.
+    /// About to enter low-power sleep because the battery is low.
     case lowPower
-    /// A Mirror session started.
+    /// Mirror connected.
     case mirrorStarted
-    /// A Mirror session ended.
+    /// Mirror disconnected.
     case mirrorEnded
 
-    /// Creates an event from the C event and its argument, or `nil` for
-    /// events unknown to this binding.
+    /// From the `eventHandler` arguments; `nil` for events this binding doesn't know.
     public init?(event: PDSystemEvent, argument: UInt32) {
         switch event {
         case kEventInit: self = .initialize

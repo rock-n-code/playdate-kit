@@ -1,15 +1,16 @@
 internal import CPlaydate
 
-/// The cached `playdate->graphics->videostream` C API table.
+/// `playdate->graphics->videostream`.
 private var streamAPI: UnsafePointer<playdate_videostream> { Playdate.videoStreamAPI.unsafelyUnwrapped }
 
 extension Graphics {
-    /// Streams video (and audio) from a file or network connection.
-    /// Wraps `LCDStreamPlayer`.
+    /// Streams video and audio from a file or connection. Wraps `LCDStreamPlayer`.
+    /// Retains its source until replaced.
     public final class StreamPlayer {
         let pointer: OpaquePointer
-        /// Retains the active source so it outlives the stream.
+        /// The C player reads the source; non-copyable `File.Handle` needs its own slot.
         private var retainedSource: AnyObject?
+        private var retainedFile: File.Handle?
 
         public init() {
             pointer = streamAPI.pointee.newPlayer.unsafelyUnwrapped().unsafelyUnwrapped
@@ -19,32 +20,32 @@ extension Graphics {
             streamAPI.pointee.freePlayer.unsafelyUnwrapped(pointer)
         }
 
-        /// Sets the sizes of the stream's video and audio buffers, in bytes.
+        /// Buffer sizes, in bytes.
         public func setBufferSize(video: Int, audio: Int) {
             streamAPI.pointee.setBufferSize.unsafelyUnwrapped(pointer, Int32(video), Int32(audio))
         }
 
-        /// Streams from an open file.
-        public func setFile(_ file: File.Handle) {
-            retainedSource = file
+        /// Takes ownership; the handle closes when replaced or on deinit.
+        public func setFile(_ file: consuming File.Handle) {
             streamAPI.pointee.setFile.unsafelyUnwrapped(pointer, file.pointer)
+            retainedFile = consume file
+            retainedSource = nil
         }
 
-        /// Streams from an HTTP connection.
         public func setHTTPConnection(_ connection: Network.HTTPConnection) {
-            retainedSource = connection
             streamAPI.pointee.setHTTPConnection.unsafelyUnwrapped(pointer, connection.pointer)
-        }
-
-        /// Streams from a TCP connection.
-        public func setTCPConnection(_ connection: Network.TCPConnection) {
             retainedSource = connection
-            streamAPI.pointee.setTCPConnection.unsafelyUnwrapped(pointer, connection.pointer)
+            retainedFile = nil
         }
 
-        /// The player used for the stream's audio track. Owned by the stream.
-        /// The same wrapper is returned on every access, so callbacks
-        /// registered on it stay valid for the stream's lifetime.
+        public func setTCPConnection(_ connection: Network.TCPConnection) {
+            streamAPI.pointee.setTCPConnection.unsafelyUnwrapped(pointer, connection.pointer)
+            retainedSource = connection
+            retainedFile = nil
+        }
+
+        /// Borrowed. The same wrapper is returned while the underlying player is unchanged,
+        /// so callbacks registered on it persist.
         public var filePlayer: Sound.FilePlayer? {
             guard let player = streamAPI.pointee.getFilePlayer.unsafelyUnwrapped(pointer) else { return nil }
             if let cached = cachedFilePlayer, cached.pointer == player {
@@ -57,24 +58,23 @@ extension Graphics {
 
         private var cachedFilePlayer: Sound.FilePlayer?
 
-        /// The player used for the stream's video track. Owned by the stream.
+        /// Borrowed; keep this player alive while using it.
         public var videoPlayer: VideoPlayer? {
             guard let player = streamAPI.pointee.getVideoPlayer.unsafelyUnwrapped(pointer) else { return nil }
             return VideoPlayer(pointer: player, isOwned: false)
         }
 
-        /// Advances the stream. Returns `true` if a frame was drawn.
+        /// Returns `true` if a frame was drawn.
         @discardableResult
         public func update() -> Bool {
             streamAPI.pointee.update.unsafelyUnwrapped(pointer)
         }
 
-        /// The number of video frames currently buffered.
         public var bufferedFrameCount: Int {
             Int(streamAPI.pointee.getBufferedFrameCount.unsafelyUnwrapped(pointer))
         }
 
-        /// The total number of bytes read from the source.
+        /// Bytes read from the source so far.
         public var bytesRead: UInt32 {
             streamAPI.pointee.getBytesRead.unsafelyUnwrapped(pointer)
         }

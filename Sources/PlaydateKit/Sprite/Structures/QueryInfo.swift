@@ -1,13 +1,12 @@
 internal import CPlaydate
 
 extension Sprite {
-    /// Information about a sprite intersected by a line segment,
-    /// mirroring `SpriteQueryInfo`.
+    /// A sprite intersected by a line segment. Wraps `SpriteQueryInfo`.
     public struct QueryInfo {
         public let sprite: Sprite
-        /// How far along the segment (0...1) the segment enters the sprite.
+        /// Entry point's position along the segment, 0...1.
         public let ti1: Float
-        /// How far along the segment (0...1) the segment exits the sprite.
+        /// Exit point's position along the segment, 0...1.
         public let ti2: Float
         public let entryPoint: (x: Float, y: Float)
         public let exitPoint: (x: Float, y: Float)

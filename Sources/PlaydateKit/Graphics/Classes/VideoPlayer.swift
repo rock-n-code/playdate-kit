@@ -1,14 +1,15 @@
 internal import CPlaydate
 
-/// The cached `playdate->graphics->video` C API table.
+/// `playdate->graphics->video`.
 private var videoAPI: UnsafePointer<playdate_video> { Playdate.videoAPI.unsafelyUnwrapped }
 
 extension Graphics {
     /// Plays .pdv video files. Wraps `LCDVideoPlayer`.
     public final class VideoPlayer {
         let pointer: OpaquePointer
+        /// `false` for players vended by a `StreamPlayer`.
         let isOwned: Bool
-        /// Retains the render context bitmap while the player uses it.
+        /// The C player holds only a raw pointer to its context.
         private var retainedContext: Bitmap?
 
         init(pointer: OpaquePointer, isOwned: Bool) {
@@ -16,9 +17,8 @@ extension Graphics {
             self.isOwned = isOwned
         }
 
-        /// Opens the .pdv file at `path`.
         public convenience init(path: String) throws(PlaydateError) {
-            let pointer = path.withPlaydateCString { videoAPI.pointee.loadVideo.unsafelyUnwrapped($0) }
+            let pointer = path.withCString { videoAPI.pointee.loadVideo.unsafelyUnwrapped($0) }
             guard let pointer else {
                 throw PlaydateError(message: "unable to load video: \(path)")
             }
@@ -31,7 +31,7 @@ extension Graphics {
             }
         }
 
-        /// Sets the bitmap the video renders into.
+        /// Retains `context`; throws with `error`. Its mask isn't drawn; use an opaque one.
         public func setContext(_ context: Bitmap) throws(PlaydateError) {
             guard videoAPI.pointee.setContext.unsafelyUnwrapped(pointer, context.pointer) != 0 else {
                 throw PlaydateError(message: error ?? "unable to set video context")
@@ -39,34 +39,32 @@ extension Graphics {
             retainedContext = context
         }
 
-        /// The bitmap the video renders into.
+        /// Borrowed. If none was set, the player allocates one the size of the video.
         public var context: Bitmap? {
             guard let context = videoAPI.pointee.getContext.unsafelyUnwrapped(pointer) else { return nil }
             return Bitmap(pointer: context, isOwned: false)
         }
 
-        /// Renders directly into the display framebuffer.
+        /// Releases any retained context.
         public func useScreenContext() {
             retainedContext = nil
             videoAPI.pointee.useScreenContext.unsafelyUnwrapped(pointer)
         }
 
-        /// Renders frame `frame` into the current context.
+        /// Renders into the current context; throws with `error`.
         public func renderFrame(_ frame: Int) throws(PlaydateError) {
             guard videoAPI.pointee.renderFrame.unsafelyUnwrapped(pointer, Int32(frame)) != 0 else {
-                // Static message: the caller knows the frame it passed, and
-                // interpolating it would pull integer formatting machinery
-                // into the device binary.
+                // Static: interpolating `frame` would link integer formatting.
                 throw PlaydateError(message: error ?? "unable to render frame")
             }
         }
 
-        /// The most recent error message, if any.
+        /// The most recent error message.
         public var error: String? {
             String(playdateCString: videoAPI.pointee.getError.unsafelyUnwrapped(pointer))
         }
 
-        /// The video's dimensions, frame rate, frame count, and current frame.
+        /// Size in pixels, frame rate in frames per second, frame count, current frame.
         public var info: (width: Int, height: Int, frameRate: Float, frameCount: Int, currentFrame: Int) {
             var width: Int32 = 0, height: Int32 = 0, frameCount: Int32 = 0, currentFrame: Int32 = 0
             var frameRate: Float = 0

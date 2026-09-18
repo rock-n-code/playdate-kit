@@ -1,15 +1,15 @@
 internal import CPlaydate
 
 extension System {
-    /// An item added to the system menu. Keep no more than three items at once.
+    /// A custom system menu item (at most three). Wraps `PDMenuItem`.
+    /// `System` keeps it alive until it is removed.
     public final class MenuItem {
         let pointer: OpaquePointer
         var onSelect: (MenuItem) -> Void
-        /// Retains C strings passed to the OS for option titles.
+        /// Option title C strings the OS points into; freed on removal.
         private var retainedOptionTitles: [UnsafeMutablePointer<CChar>] = []
 
-        /// Wraps the C menu item; fails (and frees the retained titles) if
-        /// `pointer` is nil.
+        /// Fails, freeing `retainedOptionTitles`, if `pointer` is `nil`.
         init?(pointer: OpaquePointer?,
               retainedOptionTitles: [UnsafeMutablePointer<CChar>] = [],
               onSelect: @escaping (MenuItem) -> Void) {
@@ -22,26 +22,25 @@ extension System {
             self.onSelect = onSelect
         }
 
-        /// The menu item's title.
+        /// The displayed title; empty if the OS returns none.
         public var title: String {
             get {
                 String(playdateCString: Playdate.systemAPI.pointee.getMenuItemTitle.unsafelyUnwrapped(pointer)) ?? ""
             }
             set {
-                newValue.withPlaydateCString {
+                newValue.withCString {
                     Playdate.systemAPI.pointee.setMenuItemTitle.unsafelyUnwrapped(pointer, $0)
                 }
             }
         }
 
-        /// For checkmark items this is 0 or 1; for option items it is the
-        /// index of the selected option.
+        /// Checkmark items: 0 or 1 (checked). Options items: the selected index.
         public var value: Int {
             get { Int(Playdate.systemAPI.pointee.getMenuItemValue.unsafelyUnwrapped(pointer)) }
             set { Playdate.systemAPI.pointee.setMenuItemValue.unsafelyUnwrapped(pointer, Int32(newValue)) }
         }
 
-        /// Convenience view of `value` for checkmark items.
+        /// `value` as a `Bool`, for checkmark items.
         public var isChecked: Bool {
             get { value != 0 }
             set { value = newValue ? 1 : 0 }

@@ -1,7 +1,7 @@
 internal import CPlaydate
 
 extension Graphics {
-    /// Mirroring applied when drawing a bitmap.
+    /// Mirroring applied when drawing a bitmap. Wraps `LCDBitmapFlip`.
     public enum BitmapFlip: UInt32, Sendable {
         case unflipped = 0
         case flippedX = 1

@@ -1,7 +1,7 @@
 internal import CPlaydate
 
 extension System {
-    /// The state of the d-pad and face buttons, as an option set.
+    /// A set of d-pad and A/B buttons. Wraps `PDButtons`.
     public struct Buttons: OptionSet, Sendable {
         public let rawValue: UInt32
         public init(rawValue: UInt32) { self.rawValue = rawValue }

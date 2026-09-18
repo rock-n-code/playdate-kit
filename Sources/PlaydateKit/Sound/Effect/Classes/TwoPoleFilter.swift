@@ -24,12 +24,12 @@ extension Sound {
             TwoPoleFilter.api.pointee.setType.unsafelyUnwrapped(pointer, kind.cValue)
         }
 
-        /// The center/corner frequency, in Hz.
+        /// Center or corner frequency, in Hz.
         public func setFrequency(_ frequency: Float) {
             TwoPoleFilter.api.pointee.setFrequency.unsafelyUnwrapped(pointer, frequency)
         }
 
-        /// Modulates the filter's frequency.
+        /// 1 is half the sample rate.
         public var frequencyModulator: SignalValue? {
             get { SignalValue.wrap(TwoPoleFilter.api.pointee.getFrequencyModulator.unsafelyUnwrapped(pointer)) }
             set {
@@ -38,7 +38,7 @@ extension Sound {
             }
         }
 
-        /// The gain, used by PEQ and shelf filters.
+        /// Used by `.peq` and shelf filters.
         public func setGain(_ gain: Float) {
             TwoPoleFilter.api.pointee.setGain.unsafelyUnwrapped(pointer, gain)
         }
@@ -47,7 +47,6 @@ extension Sound {
             TwoPoleFilter.api.pointee.setResonance.unsafelyUnwrapped(pointer, resonance)
         }
 
-        /// Modulates the filter's resonance.
         public var resonanceModulator: SignalValue? {
             get { SignalValue.wrap(TwoPoleFilter.api.pointee.getResonanceModulator.unsafelyUnwrapped(pointer)) }
             set {

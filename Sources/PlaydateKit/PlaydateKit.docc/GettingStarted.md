@@ -4,16 +4,16 @@ Bootstrap the bindings from your game's entry point and drive a frame loop.
 
 ## Overview
 
-A Playdate game has a single C entry point, `eventHandler`, which the
-firmware calls with a `PlaydateAPI*` and an event code. Export it with
-`@_cdecl`, call ``Playdate/initialize(with:)`` on the first event, and
-install an update callback:
+The firmware calls a game's single C entry point, `eventHandler`, with a
+`PlaydateAPI*` and an event code. Export it with `@c`, call
+``Playdate/initialize(with:)`` on the first event, and install an update
+callback:
 
 ```swift
 import CPlaydate
 import PlaydateKit
 
-@_cdecl("eventHandler")
+@c(eventHandler)
 func eventHandler(
     pointer: UnsafeMutableRawPointer,
     event: PDSystemEvent,
@@ -54,13 +54,14 @@ final class Game {
 
 ## Conventions to know
 
-- **Initialization.** Calling any wrapper before
-  ``Playdate/initialize(with:)`` is a programmer error and will crash.
-- **Errors.** Fallible operations use typed throws — ``PlaydateError``
-  generally, ``Network/NetError`` for network I/O.
+- **Initialization.** Calling a wrapper before
+  ``Playdate/initialize(with:)`` crashes.
+- **Errors.** Typed throws: ``PlaydateError`` in general,
+  ``Network/NetError`` for network I/O.
 - **Ownership.** A wrapper that creates a C object frees it on `deinit`;
-  keep the wrapper referenced for as long as you use it. Wrappers vending
-  OS-owned objects don't free them — keep the owner alive instead, as
-  documented on each API.
-- **Threading.** The Playdate runtime is single-threaded; don't call the
-  API from other threads.
+  keep the wrapper referenced while you use it. Objects vended by the OS
+  are not freed by their wrapper; keep the owner alive instead.
+- **Buffers.** Audio callbacks, I/O, the framebuffer, and bitmap pixels use
+  `Span`/`MutableSpan`, valid only for the duration of the call.
+- **Threading.** The Playdate runtime is single-threaded, except audio
+  callbacks. Do not call the API from other threads.

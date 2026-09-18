@@ -1,28 +1,25 @@
 internal import CPlaydate
 
 extension Sprite {
-    /// Information about a single collision, mirroring `SpriteCollisionInfo`.
+    /// A single collision. Wraps `SpriteCollisionInfo`.
     public struct CollisionInfo {
         /// The sprite being moved.
         public let sprite: Sprite
-        /// The sprite it collided with.
         public let other: Sprite
-        /// The collision response used.
         public let response: CollisionResponse
-        /// `true` if the sprites were overlapping when the collision
-        /// started; `false` if the sprite tunneled through.
+        /// `true` if already overlapping `other` at the start; `false` if it tunneled through.
         public let overlaps: Bool
-        /// How far along the movement (0...1) the collision occurred.
+        /// Fraction of the move to the goal done at the collision, 0...1.
         public let ti: Float
-        /// The difference between the requested and actual positions.
+        /// Difference between the original and actual positions at the collision.
         public let move: (x: Float, y: Float)
-        /// The collision normal (each component -1, 0, or 1).
+        /// Components usually -1, 0, or 1.
         public let normal: (x: Int, y: Int)
-        /// Where the sprite started touching `other`.
+        /// Where `sprite` started touching `other`.
         public let touch: (x: Float, y: Float)
-        /// The sprite's rect at the moment of the touch.
+        /// `sprite`'s rect at the touch.
         public let spriteRect: Rect
-        /// `other`'s rect at the moment of the touch.
+        /// `other`'s rect at the touch.
         public let otherRect: Rect
 
         init(_ info: SpriteCollisionInfo) {

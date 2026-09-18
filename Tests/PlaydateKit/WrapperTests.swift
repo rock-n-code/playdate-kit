@@ -64,6 +64,24 @@ struct WrapperTests {
                                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
     }
 
+    @Test func inlineArrayPatternMatchesTheTupleOne() throws {
+        guard #available(macOS 26, *) else { return }
+        // An array literal picks the InlineArray overload; a tuple literal
+        // still picks the tuple one.
+        let inline = Graphics.Pattern(rows: [1, 2, 3, 4, 5, 6, 7, 8])
+        let tuple = Graphics.Pattern(rows: (1, 2, 3, 4, 5, 6, 7, 8))
+        #expect(withUnsafeBytes(of: inline.bytes, Array.init)
+                 == withUnsafeBytes(of: tuple.bytes, Array.init))
+
+        Graphics.fillRect(x: 0, y: 0, width: 8, height: 8, color: .pattern(inline))
+        #expect(Mock.patternBytes == [1, 2, 3, 4, 5, 6, 7, 8,
+                                      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+
+        var pattern = inline
+        pattern.inlineBytes[8] = 0x0f
+        #expect(pattern.bytes.8 == 0x0f)
+    }
+
     @Test func drawTextSendsUTF8BytesAndLength() {
         let width = Graphics.drawText("Hëllo", x: 4, y: 6)
         #expect(Mock.events == ["drawText(Hëllo,enc:\(kUTF8Encoding.rawValue),4,6)"])
@@ -99,6 +117,33 @@ struct WrapperTests {
         #expect(visited == 1)
     }
 
+    @Test func tileMapSetTilesPassesTheCallersStorageWithoutCopying() {
+        let tileMap = Graphics.TileMap()
+        let indexes: [UInt16] = [1, 2, 3, 4, 5, 6]
+        tileMap.setTiles(indexes, rowWidth: 3)
+
+        #expect(Mock.events.contains("setTiles(6,3)"))
+        let storage = indexes.withUnsafeBufferPointer { $0.baseAddress }
+        #expect(UnsafePointer(Mock.tilesPointer) == storage)
+    }
+
+    @Test func bitmapMaskIsFreedAndKeepsItsBitmapAlive() {
+        weak var weakBitmap: Graphics.Bitmap?
+        var mask: Graphics.Bitmap?
+        do {
+            let bitmap = Graphics.Bitmap(width: 8, height: 8)
+            weakBitmap = bitmap
+            mask = bitmap.mask
+        }
+        #expect(mask != nil)
+        #expect(weakBitmap != nil)   // the mask keeps it alive
+        #expect(Mock.eventCount("freeBitmap") == 0)
+
+        mask = nil
+        #expect(weakBitmap == nil)
+        #expect(Mock.eventCount("freeBitmap") == 2)   // the mask, then the bitmap
+    }
+
     // MARK: Sprite
 
     @Test func spriteUserdataRecoversWrapperInCallbacks() {
@@ -109,6 +154,17 @@ struct WrapperTests {
         // Simulate the OS driving the sprite's update.
         Mock.spriteUpdateCallback?(sprite.pointer)
         #expect(updated == [ObjectIdentifier(sprite)])
+    }
+
+    @Test func spriteStencilPatternOverloadsSendTheSameRows() {
+        let sprite = Sprite()
+        sprite.setStencilPattern((1, 2, 3, 4, 5, 6, 7, 8))
+        #expect(Mock.stencilRows == [1, 2, 3, 4, 5, 6, 7, 8])
+
+        guard #available(macOS 26, *) else { return }
+        Mock.stencilRows = []
+        sprite.setStencilPattern([1, 2, 3, 4, 5, 6, 7, 8])
+        #expect(Mock.stencilRows == [1, 2, 3, 4, 5, 6, 7, 8])
     }
 
     @Test func spriteIsFreedOnDeinitAndNotWhileReferenced() {
@@ -146,7 +202,8 @@ struct WrapperTests {
         var produced = 0
         let source = Sound.addSource(stereo: false) { left, right in
             produced += left.count
-            #expect(right == nil)
+            let isMono = right.isEmpty   // #expect cannot capture a span
+            #expect(isMono)
             return true
         }
         #expect(Sound.CallbackSource.live.count == baseline + 1)
@@ -280,7 +337,8 @@ struct WrapperTests {
             let effect = Sound.Effect(processor: { left, right, _ in
                 _ = token
                 processed += left.count
-                #expect(right == nil)
+                let isMono = right.isEmpty   // #expect cannot capture a span
+                #expect(isMono)
                 return true
             })
 
@@ -341,6 +399,54 @@ struct WrapperTests {
         }
         // deinit after an explicit close must not close again.
         #expect(Mock.eventCount("close") == 1)
+    }
+
+    @Test func jsonDecodeFileReadsThroughTheHandleAndClosesIt() throws {
+        Mock.fileBytesRemaining = 20
+        let value = try JSON.decodeFile(path: "save.json")
+        guard case .null = value else {
+            Issue.record("expected .null, got \(value)")
+            return
+        }
+        // End of file reaches the decoder as 0, not -1.
+        #expect(Mock.events.contains("decode(total:20,end:0)"))
+        #expect(Mock.eventCount("close") == 1)
+    }
+
+    @Test func fileHandleClosesWhenItGoesOutOfScope() throws {
+        do {
+            let handle = try File.Handle(path: "save.dat", mode: .write)
+            _ = try handle.write([1])
+            #expect(Mock.eventCount("close") == 0)
+        }
+        #expect(Mock.eventCount("close") == 1)
+    }
+
+    @Test func fileHandleReadLengthReturnsOnlyTheBytesRead() throws {
+        let handle = try File.Handle(path: "save.dat", mode: [.read, .readData])
+
+        Mock.fileReadLimit = 3
+        #expect(try handle.read(length: 8) == [0xAB, 0xAB, 0xAB])
+
+        Mock.fileReadLimit = 0
+        #expect(try handle.read(length: 8).isEmpty)
+
+        Mock.fileReadLimit = -1
+        #expect(throws: PlaydateError.self) { try handle.read(length: 8) }
+    }
+
+    // MARK: Network
+
+    @Test func networkDisableRegistersNoCallbackSoEnableGetsItsOwnResult() {
+        var results: [String] = []
+        Network.disable()
+        #expect(Mock.events.last == "setEnabled(false,nil)")
+
+        Network.enable { error in results.append(error == nil ? "ok" : "failed") }
+        #expect(Mock.events.last == "setEnabled(true,callback)")
+
+        Mock.networkEnabledCallback?(NET_OK)
+        #expect(results == ["ok"])
     }
 
     // MARK: JSON

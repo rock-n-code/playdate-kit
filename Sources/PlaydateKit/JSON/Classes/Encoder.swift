@@ -1,8 +1,10 @@
 internal import CPlaydate
 
 extension JSON {
-    /// A streaming JSON encoder writing into a string. Wraps `json_encoder`.
+    /// A streaming JSON encoder into a string. Wraps `json_encoder`.
+    /// Does not validate: the caller must emit well-formed JSON.
     public final class Encoder {
+        /// A class so the write callback's userdata pointer stays stable.
         private final class Output {
             var bytes: [UInt8] = []
         }
@@ -10,6 +12,7 @@ extension JSON {
         private var encoder = json_encoder()
         private let output = Output()
 
+        /// `pretty` adds human-readable formatting.
         public init(pretty: Bool = false) {
             jsonAPI.pointee.initEncoder.unsafelyUnwrapped(&encoder, { userdata, string, length in
                 guard let userdata, let string else { return }
@@ -21,7 +24,6 @@ extension JSON {
         /// The JSON produced so far.
         public var json: String { String(decoding: output.bytes, as: UTF8.self) }
 
-        /// Starts a JSON array.
         public func startArray() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.startArray.unsafelyUnwrapped($0) }
         }
@@ -31,7 +33,6 @@ extension JSON {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.addArrayMember.unsafelyUnwrapped($0) }
         }
 
-        /// Ends the current array.
         public func endArray() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.endArray.unsafelyUnwrapped($0) }
         }
@@ -41,54 +42,49 @@ extension JSON {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.startTable.unsafelyUnwrapped($0) }
         }
 
-        /// Call before writing each table value.
+        /// Call before writing member `name`'s value.
         public func addTableMember(name: String) {
-            name.withPlaydateUTF8 { bytes, count in
+            name.withCString { cString in
                 withUnsafeMutablePointer(to: &encoder) {
                     $0.pointee.addTableMember.unsafelyUnwrapped(
-                        $0, bytes.assumingMemoryBound(to: CChar.self), Int32(count))
+                        $0, cString, Int32(name.utf8.count))
                 }
             }
         }
 
-        /// Ends the current object.
         public func endTable() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.endTable.unsafelyUnwrapped($0) }
         }
 
-        /// Writes a `null` value.
         public func writeNull() {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeNull.unsafelyUnwrapped($0) }
         }
 
-        /// Writes a boolean value.
         public func writeBool(_ value: Bool) {
             withUnsafeMutablePointer(to: &encoder) {
                 (value ? $0.pointee.writeTrue : $0.pointee.writeFalse).unsafelyUnwrapped($0)
             }
         }
 
-        /// Writes an integer value.
+        /// `value` must fit in `Int32`.
         public func writeInt(_ value: Int) {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeInt.unsafelyUnwrapped($0, Int32(value)) }
         }
 
-        /// Writes a floating-point value.
         public func writeDouble(_ value: Double) {
             withUnsafeMutablePointer(to: &encoder) { $0.pointee.writeDouble.unsafelyUnwrapped($0, value) }
         }
 
-        /// Writes a string value.
         public func writeString(_ value: String) {
-            value.withPlaydateUTF8 { bytes, count in
+            value.withCString { cString in
                 withUnsafeMutablePointer(to: &encoder) {
                     $0.pointee.writeString.unsafelyUnwrapped(
-                        $0, bytes.assumingMemoryBound(to: CChar.self), Int32(count))
+                        $0, cString, Int32(value.utf8.count))
                 }
             }
         }
 
-        /// Writes a complete `Value` tree.
+        /// Writes a whole `Value` tree; `.float` as `Double`, keys in `Dictionary` order.
         public func write(_ value: Value) {
             switch value {
             case .null:

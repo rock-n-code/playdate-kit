@@ -1,24 +1,21 @@
 extension Sound.Synth {
-    /// Custom generator callbacks. Samples are in signed Q8.24 format.
+    /// Custom generator callbacks, run on the audio render thread; return quickly.
+    /// Samples are signed Q8.24.
     public struct Generator {
-        /// Renders up to 256 sample frames into `left` (and `right` for
-        /// stereo generators). `rate` is the per-frame phase step in
-        /// Q0.32 format and `drate` its per-frame change. Returns the
-        /// number of frames rendered.
-        public var render: (_ left: UnsafeMutableBufferPointer<Int32>,
-                            _ right: UnsafeMutableBufferPointer<Int32>?,
+        /// Renders `left.count` frames into `left` and `right` (empty if mono). `rate` is the
+        /// per-frame Q0.32 phase step, `drate` its per-frame change. Returns frames rendered.
+        public var render: (_ left: inout MutableSpan<Int32>,
+                            _ right: inout MutableSpan<Int32>,
                             _ rate: UInt32, _ drate: Int32) -> Int
-        /// Called when a note starts. `length` is -1 for indefinite notes.
+        /// `length` is in seconds, or -1 if indefinite.
         public var noteOn: ((_ note: Sound.MIDINote, _ velocity: Float, _ length: Float) -> Void)?
-        /// Called when a note is released (`stop == false`) or stopped
-        /// (`stop == true`).
+        /// `stop` is `false` on release, `true` on stop.
         public var release: ((_ stop: Bool) -> Void)?
-        /// Sets a generator parameter. Returns `true` if the parameter is
-        /// valid.
+        /// Called by `Synth.setParameter(_:value:)` or a modulator. Returns `true` if valid.
         public var setParameter: ((_ parameter: Int, _ value: Float) -> Bool)?
 
-        public init(render: @escaping (_ left: UnsafeMutableBufferPointer<Int32>,
-                                       _ right: UnsafeMutableBufferPointer<Int32>?,
+        public init(render: @escaping (_ left: inout MutableSpan<Int32>,
+                                       _ right: inout MutableSpan<Int32>,
                                        _ rate: UInt32, _ drate: Int32) -> Int,
                     noteOn: ((_ note: Sound.MIDINote, _ velocity: Float, _ length: Float) -> Void)? = nil,
                     release: ((_ stop: Bool) -> Void)? = nil,

@@ -1,9 +1,11 @@
 internal import CPlaydate
 
 extension Graphics {
-    /// The end cap style used when drawing lines.
+    /// Line end caps. Wraps `LCDLineCapStyle`.
     public enum LineCapStyle: UInt32, Sendable {
+        /// Flat, ending at the endpoint.
         case butt = 0
+        /// Square, extending past the endpoint.
         case square = 1
         case round = 2
 

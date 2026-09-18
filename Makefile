@@ -16,6 +16,11 @@ EXAMPLE_DIR := Examples/HelloPlaydate
 SWIFT_LATEST := $(HOME)/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/bin/swift
 SWIFT_BIN ?= $(if $(wildcard $(SWIFT_LATEST)),$(SWIFT_LATEST),swift)
 
+# Use Xcode's docc: swift.org toolchains ship an x86_64-only one that needs
+# Rosetta. Override with `make docs DOCC_EXEC=/path/to/docc`.
+DOCC_EXEC ?= $(shell TOOLCHAINS= xcrun --find docc 2>/dev/null)
+DOCC_ENV := $(if $(DOCC_EXEC),DOCC_EXEC="$(DOCC_EXEC)")
+
 .PHONY: help setup build test outdated upgrade embedded consumer-test check docs docs-preview example example-run clean
 
 help: ## List the available targets
@@ -45,10 +50,10 @@ consumer-test: ## Build and run a scratch package depending on playdate-kit
 check: build test embedded consumer-test ## Everything CI runs: build, test, embedded, consumer-test
 
 docs: ## Generate the DocC documentation archive
-	swift package generate-documentation --target PlaydateKit
+	$(DOCC_ENV) swift package generate-documentation --target PlaydateKit
 
 docs-preview: ## Preview the DocC documentation in a local web server
-	swift package --disable-sandbox preview-documentation --target PlaydateKit
+	$(DOCC_ENV) swift package --disable-sandbox preview-documentation --target PlaydateKit
 
 example: ## Build the HelloPlaydate example (device + simulator pdx)
 	$(MAKE) -C $(EXAMPLE_DIR)

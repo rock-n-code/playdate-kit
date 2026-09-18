@@ -1,13 +1,14 @@
 internal import CPlaydate
 
-/// A floating-point rectangle mirroring `PDRect`.
+/// A floating-point rectangle, in pixels. Wraps `PDRect`.
 public struct Rect: Sendable {
+    /// Left edge.
     public var x: Float
+    /// Top edge.
     public var y: Float
     public var width: Float
     public var height: Float
 
-    /// Creates a rect from an origin and size.
     public init(x: Float, y: Float, width: Float, height: Float) {
         self.x = x
         self.y = y

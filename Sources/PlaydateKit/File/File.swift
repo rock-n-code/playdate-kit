@@ -1,34 +1,32 @@
 internal import CPlaydate
 
-/// The cached `playdate->file` C API table.
+/// Cached `playdate->file` table.
 var fileAPI: UnsafePointer<playdate_file> { Playdate.fileAPI.unsafelyUnwrapped }
 
-/// The most recent file system error as a thrown error.
+/// The most recent file error, with the OS's description.
 func lastFileError() -> PlaydateError {
     PlaydateError(cString: fileAPI.pointee.geterr.unsafelyUnwrapped())
 }
 
-/// The file API: access to the game's Data directory and pdx contents.
-///
-/// Paths are relative to the game's Data directory (read/write) or the
-/// game's pdx (read-only), depending on the mode used to open them.
+/// The file API. Paths are relative to the Data directory (writable) or the pdx (read-only).
+/// Every throwing API throws `PlaydateError` with the OS's description on failure.
 public enum File {}
 
 extension File {
     // MARK: - Directory operations
 
-    /// Calls `each` with the name of every file in `path`. Subdirectory names
-    /// end in a slash. Throws if the directory does not exist.
+    /// Calls `each` with each entry name in `path`, non-recursively; directories end in `/`.
+    /// Skips `.`-prefixed names unless `showHidden`. Throws if `path` can't be opened.
     public static func listFiles(at path: String, showHidden: Bool = false,
                                  _ each: (String) -> Void) throws(PlaydateError) {
         let result = withoutActuallyEscaping(each) { each in
             var callback = each
-            return path.withPlaydateCString { cPath in
+            return path.withCString { cPath in
                 withUnsafeMutablePointer(to: &callback) { callbackPointer in
                     fileAPI.pointee.listfiles.unsafelyUnwrapped(cPath, { cName, userdata in
                         guard let cName, let userdata else { return }
                         let each = userdata.assumingMemoryBound(to: ((String) -> Void).self).pointee
-                        each(String(playdateCString: cName))
+                        each(String(cString: cName))
                     }, callbackPointer, showHidden ? 1 : 0)
                 }
             }
@@ -36,10 +34,10 @@ extension File {
         if result != 0 { throw lastFileError() }
     }
 
-    /// Information about the file or directory at `path`.
+    /// Information about the file or directory at `path`; throws if it is missing.
     public static func stat(_ path: String) throws(PlaydateError) -> Stat {
         var stat = FileStat()
-        let result = path.withPlaydateCString { fileAPI.pointee.stat.unsafelyUnwrapped($0, &stat) }
+        let result = path.withCString { fileAPI.pointee.stat.unsafelyUnwrapped($0, &stat) }
         if result != 0 { throw lastFileError() }
         return Stat(
             isDirectory: stat.isdir != 0,
@@ -49,26 +47,25 @@ extension File {
                 hour: UInt8(stat.m_hour), minute: UInt8(stat.m_minute), second: UInt8(stat.m_second)))
     }
 
-    /// Creates a directory (and intermediate directories) in the Data directory.
+    /// Creates directory `path` in the Data directory; does not create intermediate ones.
     public static func mkdir(_ path: String) throws(PlaydateError) {
-        let result = path.withPlaydateCString { fileAPI.pointee.mkdir.unsafelyUnwrapped($0) }
+        let result = path.withCString { fileAPI.pointee.mkdir.unsafelyUnwrapped($0) }
         if result != 0 { throw lastFileError() }
     }
 
-    /// Deletes the file or directory at `path`. Directories require
-    /// `recursive` to be deleted with their contents.
+    /// Deletes the file at `path`; with `recursive`, a directory and its contents.
     public static func unlink(_ path: String, recursive: Bool = false) throws(PlaydateError) {
-        let result = path.withPlaydateCString {
+        let result = path.withCString {
             fileAPI.pointee.unlink.unsafelyUnwrapped($0, recursive ? 1 : 0)
         }
         if result != 0 { throw lastFileError() }
     }
 
-    /// Renames (moves) a file in the Data directory, overwriting any existing
-    /// file at the destination.
+    /// Moves `from` to `to` in the Data directory, overwriting `to`; does not create
+    /// intermediate directories.
     public static func rename(from: String, to: String) throws(PlaydateError) {
-        let result = from.withPlaydateCString { cFrom in
-            to.withPlaydateCString { cTo in
+        let result = from.withCString { cFrom in
+            to.withCString { cTo in
                 fileAPI.pointee.rename.unsafelyUnwrapped(cFrom, cTo)
             }
         }

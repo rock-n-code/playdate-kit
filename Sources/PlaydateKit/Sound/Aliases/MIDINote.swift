@@ -1,5 +1,4 @@
 extension Sound {
-    /// A note as a MIDI note number, where 60 is middle C. Fractional values
-    /// are valid.
+    /// A MIDI note number (60 is middle C); fractional values are valid.
     public typealias MIDINote = Float
 }

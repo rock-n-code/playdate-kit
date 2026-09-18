@@ -1,26 +1,22 @@
 internal import CPlaydate
 
-/// The cached `playdate->json` C API table.
+/// Cached `playdate->json` table.
 var jsonAPI: UnsafePointer<playdate_json> { Playdate.jsonAPI.unsafelyUnwrapped }
 
-/// The JSON API: decoding to and encoding from a `Value` tree.
-///
-/// The C decoder is callback-based; this wrapper drives it to build a
-/// complete `Value` tree. The encoder is exposed both as a streaming
-/// `Encoder` and as a one-shot `encode(_:)` of a `Value`.
+/// The JSON API: decodes to a complete `Value` tree; encodes by streaming (`Encoder`)
+/// or in one shot (`encode(_:pretty:)`).
 public enum JSON {}
 
 extension JSON {
     // MARK: - Decoding
 
+    /// Boxes a finished container to pass through the C decoder as a `void*`.
     private final class ValueBox {
         var value: Value
         init(_ value: Value) { self.value = value }
     }
 
-    /// A container under construction. A class, so appends mutate uniquely
-    /// referenced storage in place instead of copying the collection out of
-    /// and back into an enum payload on every element.
+    /// A container being built; a class so appends don't copy out of an enum payload.
     private final class Container {
         let isArray: Bool
         var items: [Value] = []
@@ -32,7 +28,7 @@ extension JSON {
     }
 
     private final class DecodeContext {
-        /// Containers under construction, innermost last.
+        /// Open containers, innermost last.
         var stack: [Container] = []
         var errorMessage: String?
         var errorLine: Int32 = 0
@@ -90,80 +86,70 @@ extension JSON {
             guard let userdata = decoder?.pointee.userdata else { return nil }
             let context = Unmanaged<DecodeContext>.fromOpaque(userdata).takeUnretainedValue()
             guard let finished = context.stack.popLast() else { return nil }
-            // Handed to the parent container (or the decode outval) as the
-            // sublist's value; consumed by `convert`.
+            // Goes to the parent's callback (or `outval` for the root); `convert` releases it.
             return Unmanaged.passRetained(ValueBox(finished.value)).toOpaque()
         }
         return decoder
     }
 
-    /// Decodes a JSON string into a `Value` tree.
+    /// Decodes `jsonString`; throws the decoder's error message on failure.
     public static func decode(_ jsonString: String) throws(PlaydateError) -> Value {
         let context = DecodeContext()
         let unmanaged = Unmanaged.passUnretained(context)
         var decoder = makeDecoder(context: unmanaged)
         var outval = json_value()
-        let ok = jsonString.withPlaydateCString { cString in
+        let ok = jsonString.withCString { cString in
             withExtendedLifetime(context) {
                 jsonAPI.pointee.decodeString.unsafelyUnwrapped(&decoder, cString, &outval) != 0
             }
         }
         guard ok else {
-            // A completed root container may already have been written to
-            // outval before the failure; consume it so its box is not leaked.
+            // Consume any root box already written to outval so it isn't leaked.
             _ = convert(outval)
             throw decodeError(context)
         }
         return convert(outval)
     }
 
-    /// Decodes JSON read from an open file into a `Value` tree.
-    public static func decode(file: File.Handle) throws(PlaydateError) -> Value {
+    /// Decodes JSON from `file`'s current offset, leaving it open; throws the decoder's
+    /// error message on failure.
+    public static func decode(file: borrowing File.Handle) throws(PlaydateError) -> Value {
         let context = DecodeContext()
         var decoder = makeDecoder(context: Unmanaged.passUnretained(context))
         var reader = json_reader()
-        reader.userdata = Unmanaged.passUnretained(file).toOpaque()
+        // Borrowing keeps the `SDFile` open for the whole decode.
+        reader.userdata = file.pointer
         reader.read = { userdata, buffer, size in
-            guard let userdata, let buffer else { return -1 }
-            let file = Unmanaged<File.Handle>.fromOpaque(userdata).takeUnretainedValue()
-            let destination = UnsafeMutableRawBufferPointer(start: buffer, count: Int(size))
-            do {
-                let count = try file.read(into: destination)
-                return count > 0 ? Int32(count) : -1
-            } catch {
-                return -1
-            }
+            // `file->read` returns 0 at end of data, as the decoder expects.
+            guard let userdata, let buffer else { return 0 }
+            return fileAPI.pointee.read.unsafelyUnwrapped(userdata, buffer, UInt32(size))
         }
         var outval = json_value()
         let ok = withExtendedLifetime(context) {
-            withExtendedLifetime(file) {
-                jsonAPI.pointee.decode.unsafelyUnwrapped(&decoder, reader, &outval) != 0
-            }
+            jsonAPI.pointee.decode.unsafelyUnwrapped(&decoder, reader, &outval) != 0
         }
         guard ok else {
-            // A completed root container may already have been written to
-            // outval before the failure; consume it so its box is not leaked.
+            // Consume any root box already written to outval so it isn't leaked.
             _ = convert(outval)
             throw decodeError(context)
         }
         return convert(outval)
     }
 
-    /// Opens and decodes the JSON file at `path`.
+    /// Decodes the file at `path` (Data directory first, then pdx), closing it on return.
     public static func decodeFile(path: String) throws(PlaydateError) -> Value {
         let file = try File.Handle(path: path, mode: [.read, .readData])
         return try decode(file: file)
     }
 
-    // Static message: interpolating the line number would pull integer
-    // formatting machinery into every device binary that decodes JSON.
+    // Static message: interpolating the line number pulls integer formatting into binaries.
     private static func decodeError(_ context: DecodeContext) -> PlaydateError {
         PlaydateError(message: context.errorMessage ?? "JSON decode failed")
     }
 
     // MARK: - Encoding
 
-    /// Encodes a `Value` tree as a JSON string.
+    /// Encodes `value`; `pretty` adds formatting. Table keys follow `Dictionary` order.
     public static func encode(_ value: Value, pretty: Bool = false) -> String {
         let encoder = Encoder(pretty: pretty)
         encoder.write(value)

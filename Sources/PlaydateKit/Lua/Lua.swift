@@ -1,21 +1,16 @@
-// A public import: `addFunction(_:name:)` and `pushFunction(_:)` expose the
-// `CFunction` alias of `lua_CFunction` in their public signatures.
+// Internal suffices: `CFunction.swift` publicly imports `lua_CFunction`.
 internal import CPlaydate
 
 /// The cached `playdate->lua` C API table.
 var luaAPI: UnsafePointer<playdate_lua> { Playdate.luaAPI.unsafelyUnwrapped }
 
-/// The Lua bridge: registering C functions and classes, and exchanging
-/// values with Lua code.
-///
-/// Lua callbacks are C function pointers without userdata, so functions
-/// registered here must be `@convention(c)` (the `CFunction` typealias),
-/// not capturing closures.
+/// Lua bridge: registers C functions and classes; exchanges values via the Lua stack.
+/// Registered functions must be `CFunction`s (`@convention(c)`), not capturing
+/// closures. Argument positions are 1-based.
 public enum Lua {}
 
 extension Lua {
-    /// Buffers passed to `registerClass`/`addFunction`; the OS may keep
-    /// referencing them, so they are retained for the life of the game.
+    /// Strings and tables passed to `registerClass`; never freed (the OS may keep them).
     nonisolated(unsafe) private static var retainedBuffers: [UnsafeMutableRawPointer] = []
 
     private static func retainedCString(_ string: String) -> UnsafePointer<CChar> {
@@ -26,25 +21,23 @@ extension Lua {
 
     // MARK: - Registration
 
-    /// Makes `function` callable from Lua as `name` (which may contain dots
-    /// for namespacing, e.g. "mylib.myfunc").
+    /// Makes `function` callable from Lua as `name`, which may be a dotted path
+    /// ("mylib.myfunc"). Throws `PlaydateError`.
     public static func addFunction(_ function: CFunction, name: String) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
-        let ok = name.withPlaydateCString {
+        let ok = name.withCString {
             luaAPI.pointee.addFunction.unsafelyUnwrapped(function, $0, &error) != 0
         }
         if !ok { throw PlaydateError(cString: error) }
     }
 
-    /// Registers a Lua class named `name` with the given methods and
-    /// constants. When `isStatic` is `true` a plain table of functions is
-    /// created instead of a class.
+    /// Registers class `name` (a metatable; a plain table if `isStatic`) with
+    /// `functions` and constant `values`. Throws `PlaydateError`.
     public static func registerClass(name: String,
                                      functions: [(name: String, function: CFunction)],
                                      values: [ClassValue] = [],
                                      isStatic: Bool = false) throws(PlaydateError) {
-        // The registration tables are kept alive permanently: the OS
-        // documents no copying guarantees for them.
+        // Leaked on purpose: the C API is not documented to copy them.
         var registrations: [lua_reg] = functions.map { entry in
             lua_reg(name: retainedCString(entry.name), func: entry.function)
         }
@@ -72,7 +65,7 @@ extension Lua {
         retainedBuffers.append(UnsafeMutableRawPointer(constantsBuffer))
 
         var error: UnsafePointer<CChar>?
-        let ok = name.withPlaydateCString {
+        let ok = name.withCString {
             luaAPI.pointee.registerClass.unsafelyUnwrapped($0, registrationsBuffer,
                                                    values.isEmpty ? nil : constantsBuffer,
                                                    isStatic ? 1 : 0, &error) != 0
@@ -80,36 +73,34 @@ extension Lua {
         if !ok { throw PlaydateError(cString: error) }
     }
 
-    /// Pushes a function onto the stack, e.g. for `setUserValue`.
     public static func pushFunction(_ function: CFunction) {
         luaAPI.pointee.pushFunction.unsafelyUnwrapped(function)
     }
 
-    /// From a class's `__index` callback: looks up the key in the instance
-    /// metatable first. Returns 1 if a value was found.
+    /// Looks up the indexed key in the class metatable; call first in `__index`.
+    /// If `true`, the value is on the stack and `__index` should return 1.
     public static func indexMetatable() -> Bool {
         luaAPI.pointee.indexMetatable.unsafelyUnwrapped() != 0
     }
 
-    /// Pauses the Lua runtime.
+    /// Stops the Lua run loop.
     public static func stop() {
         luaAPI.pointee.stop.unsafelyUnwrapped()
     }
 
-    /// Resumes the Lua runtime.
+    /// Restarts the Lua run loop after `stop()`.
     public static func start() {
         luaAPI.pointee.start.unsafelyUnwrapped()
     }
 
     // MARK: - Arguments
 
-    /// The number of arguments the Lua caller passed. Positions are 1-based.
+    /// The number of arguments to the current Lua call.
     public static var argumentCount: Int {
         Int(luaAPI.pointee.getArgCount.unsafelyUnwrapped())
     }
 
-    /// The type of the argument at 1-based `position`; for objects, also the
-    /// class name.
+    /// The argument's type, plus its metatable name if `.object` (else `nil`).
     public static func argumentType(at position: Int) -> (kind: Kind, className: String?) {
         var className: UnsafePointer<CChar>?
         let type = luaAPI.pointee.getArgType.unsafelyUnwrapped(Int32(position), &className)
@@ -132,11 +123,12 @@ extension Lua {
         luaAPI.pointee.getArgFloat.unsafelyUnwrapped(Int32(position))
     }
 
+    /// `nil` if the C API returns `NULL`.
     public static func stringArgument(at position: Int) -> String? {
         String(playdateCString: luaAPI.pointee.getArgString.unsafelyUnwrapped(Int32(position)))
     }
 
-    /// The argument as raw bytes (which may contain embedded zeros).
+    /// Raw bytes (may contain zeros), or `nil` if the C API returns `NULL`.
     public static func bytesArgument(at position: Int) -> [UInt8]? {
         var length = 0
         guard let bytes = luaAPI.pointee.getArgBytes.unsafelyUnwrapped(Int32(position), &length) else {
@@ -146,28 +138,24 @@ extension Lua {
         return [UInt8](buffer)
     }
 
-    /// The argument as an object instance of class `type`, with the
-    /// `UDObject` handle for retaining it.
+    /// Instance of class `type` and its handle; `object` is `nil` on type mismatch.
     public static func objectArgument(at position: Int, type: String)
         -> (object: UnsafeMutableRawPointer?, userdataObject: UDObject?) {
         var userdataObject: OpaquePointer?
-        // The C API takes a non-const class name but only reads it, so the
-        // stack copy can be passed with a mutating cast.
-        let object = type.withPlaydateCString { cType in
+        // The C API declares the class name non-const but only reads it.
+        let object = type.withCString { cType in
             luaAPI.pointee.getArgObject.unsafelyUnwrapped(
                 Int32(position), UnsafeMutablePointer(mutating: cType), &userdataObject)
         }
         return (object, userdataObject.map { UDObject(pointer: $0) })
     }
 
-    /// The argument as a bitmap. References an object owned by Lua; retain
-    /// the Lua value while using it.
+    /// Lua owns the bitmap; keep the Lua value alive while using it.
     public static func bitmapArgument(at position: Int) -> Graphics.Bitmap? {
         guard let bitmap = luaAPI.pointee.getBitmap.unsafelyUnwrapped(Int32(position)) else { return nil }
         return Graphics.Bitmap(pointer: bitmap, isOwned: false)
     }
 
-    /// The argument as a sprite.
     public static func spriteArgument(at position: Int) -> Sprite? {
         guard let sprite = luaAPI.pointee.getSprite.unsafelyUnwrapped(Int32(position)) else { return nil }
         return Sprite.wrapper(for: sprite)
@@ -175,33 +163,27 @@ extension Lua {
 
     // MARK: - Return values
 
-    /// Pushes nil onto the stack.
     public static func pushNil() {
         luaAPI.pointee.pushNil.unsafelyUnwrapped()
     }
 
-    /// Pushes a boolean onto the stack.
     public static func push(_ value: Bool) {
         luaAPI.pointee.pushBool.unsafelyUnwrapped(value ? 1 : 0)
     }
 
-    /// Pushes an integer onto the stack.
     public static func push(_ value: Int) {
         luaAPI.pointee.pushInt.unsafelyUnwrapped(Int32(value))
     }
 
-    /// Pushes a float onto the stack.
     public static func push(_ value: Float) {
         luaAPI.pointee.pushFloat.unsafelyUnwrapped(value)
     }
 
-    /// Pushes a string onto the stack.
     public static func push(_ value: String) {
-        value.withPlaydateCString { luaAPI.pointee.pushString.unsafelyUnwrapped($0) }
+        value.withCString { luaAPI.pointee.pushString.unsafelyUnwrapped($0) }
     }
 
-    /// Pushes raw bytes (which may contain embedded zeros) onto the stack
-    /// as a Lua string.
+    /// Pushes `bytes` as a Lua string; zeros are kept.
     public static func push(bytes: [UInt8]) {
         bytes.withUnsafeBytes { buffer in
             luaAPI.pointee.pushBytes.unsafelyUnwrapped(
@@ -209,24 +191,21 @@ extension Lua {
         }
     }
 
-    /// Pushes a bitmap onto the stack.
     public static func push(_ bitmap: Graphics.Bitmap) {
         luaAPI.pointee.pushBitmap.unsafelyUnwrapped(bitmap.pointer)
     }
 
-    /// Pushes a sprite onto the stack.
     public static func push(_ sprite: Sprite) {
         luaAPI.pointee.pushSprite.unsafelyUnwrapped(sprite.pointer)
     }
 
-    /// Wraps `object` in a Lua instance of class `type` and pushes it, with
-    /// `valueCount` extra user-value slots.
+    /// Pushes `object` as an instance of class `type` with `valueCount` user-value
+    /// slots. Returns its handle, or `nil` on failure.
     @discardableResult
     public static func pushObject(_ object: UnsafeMutableRawPointer, type: String,
                                   valueCount: Int = 0) -> UDObject? {
-        // The C API takes a non-const class name but only reads it, so the
-        // stack copy can be passed with a mutating cast.
-        let pointer = type.withPlaydateCString { cType in
+        // The C API declares the class name non-const but only reads it.
+        let pointer = type.withCString { cType in
             luaAPI.pointee.pushObject.unsafelyUnwrapped(
                 object, UnsafeMutablePointer(mutating: cType), Int32(valueCount))
         }
@@ -236,11 +215,11 @@ extension Lua {
 
     // MARK: - Calling Lua
 
-    /// Calls the Lua function `name`. Push the arguments onto the stack
-    /// first. Calling Lua from Swift has overhead; use sparingly.
+    /// Calls Lua function `name` (dotted path allowed) with the `argumentCount`
+    /// arguments already pushed. Slow; use sparingly. Throws `PlaydateError`.
     public static func callFunction(_ name: String, argumentCount: Int = 0) throws(PlaydateError) {
         var error: UnsafePointer<CChar>?
-        let ok = name.withPlaydateCString {
+        let ok = name.withCString {
             luaAPI.pointee.callFunction.unsafelyUnwrapped($0, Int32(argumentCount), &error) != 0
         }
         if !ok { throw PlaydateError(cString: error) }

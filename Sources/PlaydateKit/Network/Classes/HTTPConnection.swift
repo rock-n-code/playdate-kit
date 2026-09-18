@@ -4,11 +4,9 @@ internal import CPlaydate
 private var httpAPI: UnsafePointer<playdate_http> { Playdate.httpAPI.unsafelyUnwrapped }
 
 extension Network {
-    /// An HTTP connection to a server. Wraps `HTTPConnection`.
-    ///
-    /// The binding stores a back-reference to each wrapper in the
-    /// underlying object's userdata slot so callbacks can recover the
-    /// wrapper; the C userdata slot is therefore reserved by the binding.
+    /// An HTTP connection. Wraps `HTTPConnection`; methods throw `Network.NetError`.
+    /// Callbacks don't retain it: keep it referenced until they fire, as `deinit`
+    /// drops pending callbacks and releases the C connection.
     public final class HTTPConnection {
         let pointer: OpaquePointer
 
@@ -18,8 +16,8 @@ extension Network {
         var requestCompleteCallback: ((HTTPConnection) -> Void)?
         var connectionClosedCallback: ((HTTPConnection) -> Void)?
 
-        /// Requests permission to connect to `server`. If the reply is
-        /// `.ask`, the completion is called later with the user's answer.
+        /// Asks to connect to `server` and its subdomains; call before `init`.
+        /// `purpose` appears in the dialog; `completion` runs only if the reply is `.ask`.
         @discardableResult
         public static func requestAccess(server: String, port: Int = 443, useSSL: Bool = true,
                                          purpose: String? = nil,
@@ -30,10 +28,9 @@ extension Network {
                 completion: completion)
         }
 
-        /// Opens a connection to `server`. Fails if access has not been
-        /// granted.
+        /// Sends nothing until a request. `nil` if access is denied or not yet granted.
         public init?(server: String, port: Int = 443, useSSL: Bool = true) {
-            let pointer = server.withPlaydateCString {
+            let pointer = server.withCString {
                 httpAPI.pointee.newConnection.unsafelyUnwrapped($0, Int32(port), useSSL)
             }
             guard let pointer else { return nil }
@@ -54,48 +51,48 @@ extension Network {
 
         // MARK: Configuration
 
-        /// The time to wait for the connection to open, in milliseconds.
+        /// Connect timeout, in ms.
         public func setConnectTimeout(milliseconds: Int) {
             httpAPI.pointee.setConnectTimeout.unsafelyUnwrapped(pointer, Int32(milliseconds))
         }
 
-        /// Whether to keep the connection open after a request completes.
+        /// Whether requests send `Connection: keep-alive`.
         public func setKeepAlive(_ keepAlive: Bool) {
             httpAPI.pointee.setKeepAlive.unsafelyUnwrapped(pointer, keepAlive)
         }
 
-        /// Adds a `Range: bytes=start-end` header to future requests.
+        /// Adds a `Range: bytes=start-end` header.
         public func setByteRange(start: Int, end: Int) {
             httpAPI.pointee.setByteRange.unsafelyUnwrapped(pointer, Int32(start), Int32(end))
         }
 
-        /// The time to wait for incoming data, in milliseconds.
+        /// How long `read` waits for data, in ms (default 1000).
         public func setReadTimeout(milliseconds: Int) {
             httpAPI.pointee.setReadTimeout.unsafelyUnwrapped(pointer, Int32(milliseconds))
         }
 
-        /// The size of the connection's read buffer, in bytes.
+        /// Read buffer size, in bytes (default 64 KB).
         public func setReadBufferSize(bytes: Int) {
             httpAPI.pointee.setReadBufferSize.unsafelyUnwrapped(pointer, Int32(bytes))
         }
 
         // MARK: Requests
 
-        /// Sends a GET request for `path`. `headers` are raw header lines
-        /// (e.g. "Accept: text/html\r\n").
+        /// GETs `path`, opening the connection if needed. `headers` are extra raw
+        /// header lines (e.g. "Accept: text/html\r\n").
         public func get(path: String, headers: String = "") throws(NetError) {
-            let error = path.withPlaydateCString { cPath in
-                headers.withPlaydateCString { cHeaders in
+            let error = path.withCString { cPath in
+                headers.withCString { cHeaders in
                     httpAPI.pointee.get.unsafelyUnwrapped(pointer, cPath, cHeaders, headers.utf8.count)
                 }
             }
             try Network.check(error)
         }
 
-        /// Sends a POST request for `path` with the given body.
+        /// POSTs `body` to `path`; otherwise like `get`.
         public func post(path: String, headers: String = "", body: [UInt8]) throws(NetError) {
-            let error = path.withPlaydateCString { cPath in
-                headers.withPlaydateCString { cHeaders in
+            let error = path.withCString { cPath in
+                headers.withCString { cHeaders in
                     body.withUnsafeBytes { bodyBuffer in
                         httpAPI.pointee.post.unsafelyUnwrapped(
                             pointer, cPath, cHeaders, headers.utf8.count,
@@ -107,12 +104,12 @@ extension Network {
             try Network.check(error)
         }
 
-        /// Sends a request with an arbitrary HTTP method.
+        /// Sends a `method` request; otherwise like `post`.
         public func query(method: String, path: String, headers: String = "",
                           body: [UInt8] = []) throws(NetError) {
-            let error = method.withPlaydateCString { cMethod in
-                path.withPlaydateCString { cPath in
-                    headers.withPlaydateCString { cHeaders in
+            let error = method.withCString { cMethod in
+                path.withCString { cPath in
+                    headers.withCString { cHeaders in
                         body.withUnsafeBytes { bodyBuffer in
                             httpAPI.pointee.query.unsafelyUnwrapped(
                                 pointer, cMethod, cPath, cHeaders, headers.utf8.count,
@@ -127,61 +124,63 @@ extension Network {
 
         // MARK: Response
 
-        /// The last error on the connection, if any.
+        /// The connection's last error, if any.
         public var error: NetError? {
             Network.optionalError(httpAPI.pointee.getError.unsafelyUnwrapped(pointer))
         }
 
-        /// The number of bytes read of the current response, and the total
-        /// expected (0 if the response has no Content-Length).
+        /// Response bytes read so far, and the total expected if known.
         public var progress: (read: Int, total: Int) {
             var read: Int32 = 0, total: Int32 = 0
             httpAPI.pointee.getProgress.unsafelyUnwrapped(pointer, &read, &total)
             return (Int(read), Int(total))
         }
 
-        /// The HTTP status code of the response.
+        /// HTTP status code, valid once headers are parsed.
         public var responseStatus: Int {
             Int(httpAPI.pointee.getResponseStatus.unsafelyUnwrapped(pointer))
         }
 
-        /// The number of response bytes available to read.
+        /// Response bytes available to read.
         public var bytesAvailable: Int {
             Int(httpAPI.pointee.getBytesAvailable.unsafelyUnwrapped(pointer))
         }
 
-        /// Reads up to `buffer.count` response bytes. Returns the number of
-        /// bytes read.
-        public func read(into buffer: UnsafeMutableRawBufferPointer) throws(NetError) -> Int {
-            let result = httpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress,
-                                                        UInt32(buffer.count))
+        /// Reads up to `buffer.count` bytes (capped by the read buffer size), waiting
+        /// up to the read timeout. Returns the count read.
+        public func read(into buffer: inout MutableSpan<UInt8>) throws(NetError) -> Int {
+            let result = buffer.withUnsafeMutableBufferPointer { buffer in
+                httpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
+            }
             if result < 0 {
                 throw NetError(rawValue: result) ?? .unknown
             }
             return Int(result)
         }
 
-        /// Reads up to `length` available response bytes.
+        /// Like `read(into:)`, returning the bytes read.
         public func read(length: Int) throws(NetError) -> [UInt8] {
-            var bytes = [UInt8](repeating: 0, count: length)
-            let result = bytes.withUnsafeMutableBytes { buffer in
-                httpAPI.pointee.read.unsafelyUnwrapped(pointer, buffer.baseAddress, UInt32(buffer.count))
+            try [UInt8](capacity: length) { output throws(NetError) in
+                let result = output.withUnsafeMutableBufferPointer { buffer, initializedCount in
+                    let result = httpAPI.pointee.read.unsafelyUnwrapped(
+                        pointer, buffer.baseAddress, UInt32(buffer.count))
+                    initializedCount = max(Int(result), 0)
+                    return result
+                }
+                if result < 0 {
+                    throw NetError(rawValue: result) ?? .unknown
+                }
             }
-            if result < 0 {
-                throw NetError(rawValue: result) ?? .unknown
-            }
-            bytes.removeLast(length - Int(result))
-            return bytes
         }
 
-        /// Closes the connection.
+        /// Closes the connection; it can be reused for another request.
         public func close() {
             httpAPI.pointee.close.unsafelyUnwrapped(pointer)
         }
 
         // MARK: Callbacks
 
-        /// Called for each header line as it arrives.
+        /// Called per response header line. `nil` removes it.
         public func setHeaderReceivedCallback(_ callback: ((HTTPConnection, _ key: String, _ value: String) -> Void)?) {
             headerReceivedCallback = callback
             if callback != nil {
@@ -196,7 +195,8 @@ extension Network {
             }
         }
 
-        /// Called when all headers have been read.
+        /// Called once headers are parsed, making `responseStatus` and `progress` valid.
+        /// `nil` removes it.
         public func setHeadersReadCallback(_ callback: ((HTTPConnection) -> Void)?) {
             headersReadCallback = callback
             if callback != nil {
@@ -209,7 +209,7 @@ extension Network {
             }
         }
 
-        /// Called when response data is available to read.
+        /// Called when response data is available to read. `nil` removes it.
         public func setResponseCallback(_ callback: ((HTTPConnection) -> Void)?) {
             responseCallback = callback
             if callback != nil {
@@ -222,7 +222,7 @@ extension Network {
             }
         }
 
-        /// Called when the request finishes.
+        /// Called when all data arrives (size known) or the request times out. `nil` removes it.
         public func setRequestCompleteCallback(_ callback: ((HTTPConnection) -> Void)?) {
             requestCompleteCallback = callback
             if callback != nil {
@@ -235,7 +235,7 @@ extension Network {
             }
         }
 
-        /// Called when the connection closes.
+        /// Called when the server closes the connection. `nil` removes it.
         public func setConnectionClosedCallback(_ callback: ((HTTPConnection) -> Void)?) {
             connectionClosedCallback = callback
             if callback != nil {

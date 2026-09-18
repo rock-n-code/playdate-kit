@@ -12,7 +12,14 @@
 #   libc headers that bare-metal builds resolve against newlib. Override the
 #   directory with ARM_NONE_EABI_INCLUDE, otherwise common install locations
 #   are searched.
-# - The "playdate" pkg-config module (Scripts/install-pkgconfig.sh).
+# - The Playdate SDK, located via $PLAYDATE_SDK_PATH (default
+#   ~/Developer/PlaydateSDK), for pd_api.h.
+#
+# The module is compiled with swiftc directly rather than `swift build`:
+# SwiftPM's default build system links the target's objects with Darwin
+# linker flags even for bare-metal ELF targets, which neither ld64 nor
+# ld.lld accept, and the native build system that stopped after compiling
+# is deprecated.
 
 set -eu
 
@@ -38,21 +45,45 @@ if [ -z "$include_dir" ] || [ ! -f "$include_dir/stdlib.h" ]; then
     exit 1
 fi
 
-echo "Using swift: $swift_bin ($($swift_bin --version 2>/dev/null | head -1))"
-echo "Using arm-none-eabi headers: $include_dir"
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+swiftc_bin="$(dirname "$(command -v "$swift_bin")")/swiftc"
+sdk_path="${PLAYDATE_SDK_PATH:-$HOME/Developer/PlaydateSDK}"
+output_dir="$repo_root/.build/embedded"
 
-# --build-system native stops after compilation; the default build system
-# also tries to merge objects with the host linker, which cannot process
-# bare-metal ELF objects.
-exec "$swift_bin" build \
-    --build-system native \
-    --target PlaydateKit \
-    --triple armv7em-none-none-eabi \
-    -Xswiftc -enable-experimental-feature -Xswiftc Embedded \
-    -Xswiftc -wmo \
-    -Xswiftc -Osize \
+if [ ! -f "$sdk_path/C_API/pd_api.h" ]; then
+    echo "error: pd_api.h not found under '$sdk_path/C_API'." >&2
+    echo "Install the Playdate SDK or set PLAYDATE_SDK_PATH." >&2
+    exit 1
+fi
+
+echo "Using swiftc: $swiftc_bin ($("$swiftc_bin" --version 2>/dev/null | head -1))"
+echo "Using arm-none-eabi headers: $include_dir"
+echo "Using Playdate SDK: $sdk_path"
+
+mkdir -p "$output_dir"
+
+# The upcoming features mirror the target's swiftSettings in Package.swift.
+find "$repo_root/Sources/PlaydateKit" -name '*.swift' -exec "$swiftc_bin" \
+    -module-name PlaydateKit \
+    -parse-as-library \
+    -swift-version 6 \
+    -enable-upcoming-feature ExistentialAny \
+    -enable-upcoming-feature InternalImportsByDefault \
+    -enable-upcoming-feature MemberImportVisibility \
+    -target armv7em-none-none-eabi \
+    -enable-experimental-feature Embedded \
+    -wmo \
+    -Osize \
+    -I "$repo_root/Sources/CPlaydate" \
+    -Xcc -I"$sdk_path/C_API" \
     -Xcc -I"$include_dir" \
     -Xcc -mcpu=cortex-m7 \
     -Xcc -mfloat-abi=hard \
     -Xcc -mfpu=fpv5-sp-d16 \
-    -Xcc -fshort-enums
+    -Xcc -fshort-enums \
+    -module-cache-path "$output_dir/module-cache" \
+    -emit-module -emit-module-path "$output_dir/PlaydateKit.swiftmodule" \
+    -c -o "$output_dir/PlaydateKit.o" \
+    {} +
+
+echo "Compiled $output_dir/PlaydateKit.o"

@@ -18,13 +18,11 @@ extension Sound {
             }
         }
 
-        /// The filter's cutoff: -1 to 1, where values above 0 are low-pass
-        /// and values below 0 high-pass.
+        /// The cutoff, -1 to 1: above 0 is high-pass, below 0 low-pass.
         public func setParameter(_ parameter: Float) {
             OnePoleFilter.api.pointee.setParameter.unsafelyUnwrapped(pointer, parameter)
         }
 
-        /// Modulates the filter's cutoff parameter.
         public var parameterModulator: SignalValue? {
             get { SignalValue.wrap(OnePoleFilter.api.pointee.getParameterModulator.unsafelyUnwrapped(pointer)) }
             set {

@@ -1,22 +1,17 @@
 internal import CPlaydate
 
 extension Graphics {
-    /// A drawing color: solid or an 8×8 pattern.
+    /// Wraps `LCDColor`: a solid color or an 8×8 pattern.
     public enum Color: Sendable {
-        /// Solid black.
         case black
-        /// Solid white.
         case white
-        /// Transparent; leaves the destination unchanged.
+        /// Leaves the destination unchanged.
         case clear
-        /// Inverts the destination pixels.
+        /// Inverts the destination.
         case xor
-        /// An 8×8 two-color pattern.
         case pattern(Pattern)
 
-        /// Materializes the `LCDColor` for the duration of `body`. Pattern
-        /// colors pass a pointer to a temporary, so the value must not be
-        /// stored beyond the call.
+        /// For `.pattern`, the `LCDColor` points to a copy valid only during `body`.
         func withLCDColor<Result>(_ body: (LCDColor) -> Result) -> Result {
             switch self {
             case .black: return body(LCDColor(kColorBlack.rawValue))

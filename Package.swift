@@ -1,6 +1,13 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.4
 
 import PackageDescription
+
+// Upcoming language features adopted ahead of the next language mode.
+let swiftSettings: [SwiftSetting] = [
+    .enableUpcomingFeature("ExistentialAny"),
+    .enableUpcomingFeature("InternalImportsByDefault"),
+    .enableUpcomingFeature("MemberImportVisibility"),
+]
 
 let package = Package(
     name: "playdate-kit",
@@ -29,17 +36,13 @@ let package = Package(
             name: "PlaydateKit",
             dependencies: ["CPlaydate"],
             path: "Sources/PlaydateKit",
-            swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
-            ],
+            swiftSettings: swiftSettings,
         ),
         .testTarget(
             name: "PlaydateKitTests",
             dependencies: ["PlaydateKit"],
             path: "Tests/PlaydateKit",
-            swiftSettings: [
-                .enableUpcomingFeature("ApproachableConcurrency"),
-            ],
+            swiftSettings: swiftSettings,
         ),
     ]
 )

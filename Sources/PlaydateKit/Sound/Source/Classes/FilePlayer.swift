@@ -7,7 +7,7 @@ extension Sound {
 
         var loopCallback: ((FilePlayer) -> Void)?
         var fadeCallback: ((FilePlayer) -> Void)?
-        var mp3DataSource: ((UnsafeMutableBufferPointer<UInt8>) -> Int)?
+        var mp3DataSource: ((inout MutableSpan<UInt8>) -> Int)?
         private var retainedRateModulator: SignalValue?
 
         override init(pointer: OpaquePointer?, isOwned: Bool) {
@@ -19,7 +19,6 @@ extension Sound {
                       isOwned: true)
         }
 
-        /// Creates a player and loads the audio file at `path`.
         public convenience init(path: String) throws(PlaydateError) {
             self.init()
             try load(path: path)
@@ -31,9 +30,8 @@ extension Sound {
             }
         }
 
-        /// Prepares the player to stream the file at `path`.
         public func load(path: String) throws(PlaydateError) {
-            let loaded = path.withPlaydateCString {
+            let loaded = path.withCString {
                 FilePlayer.api.pointee.loadIntoPlayer.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
@@ -41,63 +39,60 @@ extension Sound {
             }
         }
 
-        /// Sets the length of the stream buffer, in seconds. Default 0.25.
+        /// Stream buffer length, in seconds; default 0.25.
         public func setBufferLength(_ seconds: Float) {
             FilePlayer.api.pointee.setBufferLength.unsafelyUnwrapped(pointer, seconds)
         }
 
-        /// Starts playback, looping `repeat` times; 0 loops endlessly.
+        /// Plays `repeat` times (0 loops forever); `false` if buffer allocation failed.
         @discardableResult
         public func play(repeat repeatCount: Int = 1) -> Bool {
             FilePlayer.api.pointee.play.unsafelyUnwrapped(pointer, Int32(repeatCount)) != 0
         }
 
-        /// Pauses playback.
         public func pause() {
             FilePlayer.api.pointee.pause.unsafelyUnwrapped(pointer)
         }
 
-        /// Stops playback.
         public func stop() {
             FilePlayer.api.pointee.stop.unsafelyUnwrapped(pointer)
         }
 
-        /// The file's length in seconds.
+        /// Length in seconds.
         public var length: Float {
             FilePlayer.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
-        /// The playback position in seconds.
+        /// Playback position, in seconds.
         public var offset: Float {
             get { FilePlayer.api.pointee.getOffset.unsafelyUnwrapped(pointer) }
             set { FilePlayer.api.pointee.setOffset.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// The playback rate; 1 is normal speed, negative values are not
-        /// supported.
+        /// Playback rate; 1 is normal. Negative (reverse) is unsupported.
         public var rate: Float {
             get { FilePlayer.api.pointee.getRate.unsafelyUnwrapped(pointer) }
             set { FilePlayer.api.pointee.setRate.unsafelyUnwrapped(pointer, newValue) }
         }
 
-        /// Loops playback between `start` and `end` (seconds) while playing
-        /// with `repeat` 0. An `end` of 0 means the end of the file.
+        /// Loop region, in seconds; `end` 0 means end of file. Loops only if played
+        /// with `repeat` 0 or ≥ 2.
         public func setLoopRange(start: Float, end: Float) {
             FilePlayer.api.pointee.setLoopRange.unsafelyUnwrapped(pointer, start, end)
         }
 
-        /// Whether playback underran because the file could not be read fast
-        /// enough.
+        /// Whether playback underran because the file couldn't be read fast enough.
         public var didUnderrun: Bool {
             FilePlayer.api.pointee.didUnderrun.unsafelyUnwrapped(pointer) != 0
         }
 
-        /// Stops playback (instead of looping the buffer) on underrun.
+        /// If `true`, an underrun stops playback and calls the finish callback; by
+        /// default playback resumes after a stutter once data arrives.
         public func setStopOnUnderrun(_ flag: Bool) {
             FilePlayer.api.pointee.setStopOnUnderrun.unsafelyUnwrapped(pointer, flag ? 1 : 0)
         }
 
-        /// Sets a function called every time playback loops.
+        /// Called each time playback loops; `nil` removes it.
         public func setLoopCallback(_ callback: ((FilePlayer) -> Void)?) {
             loopCallback = callback
             if callback != nil {
@@ -111,8 +106,8 @@ extension Sound {
             }
         }
 
-        /// Fades the volume to the given levels over `length` sample frames,
-        /// then calls `completion`.
+        /// Fades to `left`/`right` (0–1) over `length` sample frames, then calls
+        /// `completion`.
         public func fadeVolume(left: Float, right: Float, length: Int32,
                                completion: ((FilePlayer) -> Void)? = nil) {
             fadeCallback = completion
@@ -127,21 +122,20 @@ extension Sound {
             }
         }
 
-        /// Streams MP3 data from a callback instead of a file. The callback
-        /// fills the buffer and returns the number of bytes written; return 0
-        /// to signal the end of the stream.
+        /// Streams MP3 from `dataSource`, buffering `bufferLength` seconds. `dataSource`
+        /// fills the span and returns bytes written; 0 ends the stream.
         public func setMP3StreamSource(bufferLength: Float,
-                                       _ dataSource: @escaping (UnsafeMutableBufferPointer<UInt8>) -> Int) {
+                                       _ dataSource: @escaping (inout MutableSpan<UInt8>) -> Int) {
             mp3DataSource = dataSource
             FilePlayer.api.pointee.setMP3StreamSource.unsafelyUnwrapped(pointer, { data, bytes, userdata in
                 guard let userdata, let data else { return 0 }
                 let player = Unmanaged<FilePlayer>.fromOpaque(userdata).takeUnretainedValue()
-                let buffer = UnsafeMutableBufferPointer(start: data, count: Int(bytes))
-                return Int32(player.mp3DataSource?(buffer) ?? 0)
+                var buffer = UnsafeMutableBufferPointer(start: data, count: Int(bytes)).mutableSpan
+                return Int32(player.mp3DataSource?(&buffer) ?? 0)
             }, Unmanaged.passUnretained(self).toOpaque(), bufferLength)
         }
 
-        /// Modulates the playback rate.
+        /// A signal added to `rate`; `nil` clears it. The player retains it.
         public var rateModulator: SignalValue? {
             get { SignalValue.wrap(FilePlayer.api.pointee.getRateModulator.unsafelyUnwrapped(pointer)) }
             set {

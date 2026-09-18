@@ -1,11 +1,11 @@
 internal import CPlaydate
 
 extension Scoreboards {
-    /// A board belonging to the game.
+    /// One of the game's boards. Copied from `PDBoard`.
     public struct Board {
-        /// The board's identifier, used in the other scoreboard calls.
+        /// Passed as `boardID` to the other calls.
         public let boardID: String
-        /// The board's display name.
+        /// Display name.
         public let name: String
 
         init(_ board: PDBoard) {

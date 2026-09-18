@@ -1,7 +1,8 @@
 internal import CPlaydate
 
 extension Sound {
-    /// A track of notes played by an instrument. Wraps `SequenceTrack`.
+    /// Notes and control signals played on one instrument. Wraps `SequenceTrack`.
+    /// Owns the control signals it returns; keeps an instrument set on it alive.
     public final class SequenceTrack {
         private static var api: UnsafePointer<playdate_sound_track> { Playdate.trackAPI.unsafelyUnwrapped }
 
@@ -25,7 +26,6 @@ extension Sound {
             }
         }
 
-        /// The instrument that plays this track's notes.
         public var instrument: Instrument? {
             get {
                 if let retainedInstrument { return retainedInstrument }
@@ -40,32 +40,29 @@ extension Sound {
             }
         }
 
-        /// Adds a note starting at `step`, lasting `length` steps.
+        /// `length` is in steps.
         public func addNote(step: UInt32, length: UInt32, note: MIDINote, velocity: Float = 1) {
             SequenceTrack.api.pointee.addNoteEvent.unsafelyUnwrapped(pointer, step, length, note, velocity)
         }
 
-        /// Removes the note at `step`, if any.
         public func removeNote(step: UInt32, note: MIDINote) {
             SequenceTrack.api.pointee.removeNoteEvent.unsafelyUnwrapped(pointer, step, note)
         }
 
-        /// Removes all notes from the track.
         public func clearNotes() {
             SequenceTrack.api.pointee.clearNotes.unsafelyUnwrapped(pointer)
         }
 
-        /// The track's length in steps, including the tail of the last note.
+        /// In steps: where the last note ends.
         public var length: UInt32 {
             SequenceTrack.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
-        /// The index of the first note at or after `step`.
+        /// The internal index of the first note at `step`.
         public func indexForStep(_ step: UInt32) -> Int {
             Int(SequenceTrack.api.pointee.getIndexForStep.unsafelyUnwrapped(pointer, step))
         }
 
-        /// The note at `index`, or `nil` if the index is out of range.
         public func note(at index: Int) -> (step: UInt32, length: UInt32,
                                             note: MIDINote, velocity: Float)? {
             var step: UInt32 = 0, length: UInt32 = 0
@@ -76,42 +73,37 @@ extension Sound {
             return (step, length, note, velocity)
         }
 
-        /// The number of control signals on the track.
         public var controlSignalCount: Int {
             Int(SequenceTrack.api.pointee.getControlSignalCount.unsafelyUnwrapped(pointer))
         }
 
-        /// The control signal at `index`. Owned by the track.
         public func controlSignal(at index: Int) -> ControlSignal? {
             guard let signal = SequenceTrack.api.pointee.getControlSignal.unsafelyUnwrapped(
                 pointer, Int32(index)) else { return nil }
             return ControlSignal(pointer: signal, isOwned: false)
         }
 
-        /// The control signal for MIDI controller `controller`, optionally
-        /// creating it. Owned by the track.
+        /// If `create`, makes the signal for `controller` when it is missing.
         public func signalForController(_ controller: Int, create: Bool = false) -> ControlSignal? {
             guard let signal = SequenceTrack.api.pointee.getSignalForController.unsafelyUnwrapped(
                 pointer, Int32(controller), create ? 1 : 0) else { return nil }
             return ControlSignal(pointer: signal, isOwned: false)
         }
 
-        /// Removes all control signal events from the track.
         public func clearControlEvents() {
             SequenceTrack.api.pointee.clearControlEvents.unsafelyUnwrapped(pointer)
         }
 
-        /// The maximum number of simultaneous notes in the track.
+        /// Max simultaneous notes; set only for tracks loaded from a MIDI file.
         public var polyphony: Int {
             Int(SequenceTrack.api.pointee.getPolyphony.unsafelyUnwrapped(pointer))
         }
 
-        /// The number of notes currently playing.
+        /// Voices playing in the track's instrument.
         public var activeVoiceCount: Int {
             Int(SequenceTrack.api.pointee.activeVoiceCount.unsafelyUnwrapped(pointer))
         }
 
-        /// Mutes or unmutes the track.
         public func setMuted(_ muted: Bool) {
             SequenceTrack.api.pointee.setMuted.unsafelyUnwrapped(pointer, muted ? 1 : 0)
         }

@@ -3,45 +3,50 @@ internal import CPlaydate
 /// The cached `playdate->network` C API table.
 private var networkAPI: UnsafePointer<playdate_network> { Playdate.networkAPI.unsafelyUnwrapped }
 
-/// The network API: wifi status, HTTP, and TCP.
+/// Wifi control, HTTP, and TCP. Throwing APIs here throw `Network.NetError`.
 public enum Network {}
 
 extension Network {
-    /// Throws unless `error` is `NET_OK`.
     static func check(_ error: PDNetErr) throws(NetError) {
         if error != NET_OK {
             throw NetError(error)
         }
     }
 
-    /// Converts an error code to `nil` (OK) or a `NetError`.
     static func optionalError(_ error: PDNetErr) -> NetError? {
         error == NET_OK ? nil : NetError(error)
     }
 
-    /// The device's current wifi status.
+    /// The current wifi status; `.notConnected` for unrecognized C values.
     public static var status: WifiStatus {
         WifiStatus(rawValue: UInt32(networkAPI.pointee.getStatus.unsafelyUnwrapped().rawValue)) ?? .notConnected
     }
 
-    /// Turns the wifi radio on or off. The completion receives `nil` on
-    /// success. Completions of overlapping calls are delivered in call order.
-    public static func setEnabled(_ enabled: Bool, completion: ((NetError?) -> Void)? = nil) {
+    /// Connects to the access point now. `completion` gets `nil` on success, in call order.
+    public static func enable(completion: ((NetError?) -> Void)? = nil) {
         if let completion {
-            setEnabledCompletions.append(completion)
-            networkAPI.pointee.setEnabled.unsafelyUnwrapped(enabled, { error in
-                guard !Network.setEnabledCompletions.isEmpty else { return }
-                let completion = Network.setEnabledCompletions.removeFirst()
+            enableCompletions.append(completion)
+            networkAPI.pointee.setEnabled.unsafelyUnwrapped(true, { error in
+                guard !Network.enableCompletions.isEmpty else { return }
+                let completion = Network.enableCompletions.removeFirst()
                 completion(Network.optionalError(error))
             })
         } else {
-            networkAPI.pointee.setEnabled.unsafelyUnwrapped(enabled, nil)
+            networkAPI.pointee.setEnabled.unsafelyUnwrapped(true, nil)
         }
     }
 
-    nonisolated(unsafe) private static var setEnabledCompletions: [(NetError?) -> Void] = []
+    /// Turns wifi off now, not after the 30 s idle timeout.
+    public static func disable() {
+        // No callback: C documents it for enabling only, and a queued one would take
+        // the next `enable` result.
+        networkAPI.pointee.setEnabled.unsafelyUnwrapped(false, nil)
+    }
 
-    /// Requests permission to connect to `server`. Shared by HTTP and TCP.
+    nonisolated(unsafe) private static var enableCompletions: [(NetError?) -> Void] = []
+
+    /// Shared by HTTP and TCP. Retains `completion` until the C callback, which
+    /// fires only for `.ask`.
     static func requestAccess(
         rawRequest: (UnsafePointer<CChar>?, Int32, Bool, UnsafePointer<CChar>?,
                      (@convention(c) (Bool, UnsafeMutableRawPointer?) -> Void)?,
@@ -57,9 +62,9 @@ extension Network {
             guard let userdata else { return }
             Unmanaged<Box>.fromOpaque(userdata).takeRetainedValue().body(allowed)
         }
-        let reply = server.withPlaydateCString { cServer in
+        let reply = server.withCString { cServer in
             if let purpose {
-                return purpose.withPlaydateCString { cPurpose in
+                return purpose.withCString { cPurpose in
                     rawRequest(cServer, Int32(port), useSSL, cPurpose, trampoline, box.toOpaque())
                 }
             } else {
@@ -67,7 +72,7 @@ extension Network {
             }
         }
         if reply != kAccessAsk {
-            // The callback will not be invoked; balance the retain.
+            // Only `kAccessAsk` invokes the callback; balance the retain now.
             box.release()
         }
         return AccessReply(rawValue: UInt32(reply.rawValue)) ?? .ask

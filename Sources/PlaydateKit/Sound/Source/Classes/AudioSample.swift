@@ -13,7 +13,7 @@ extension Sound {
             self.isOwned = isOwned
         }
 
-        /// Allocates a sample buffer with room for `byteCount` bytes.
+        /// An empty buffer sized for a `byteCount`-byte file; fill it with `load(path:)`.
         public convenience init(byteCount: Int) {
             self.init(pointer: AudioSample.api.pointee.newSampleBuffer.unsafelyUnwrapped(
                 Int32(byteCount)).unsafelyUnwrapped, isOwned: true)
@@ -21,17 +21,15 @@ extension Sound {
 
         /// Loads the wav or aiff file at `path`.
         public convenience init(path: String) throws(PlaydateError) {
-            let pointer = path.withPlaydateCString { AudioSample.api.pointee.load.unsafelyUnwrapped($0) }
+            let pointer = path.withCString { AudioSample.api.pointee.load.unsafelyUnwrapped($0) }
             guard let pointer else {
                 throw PlaydateError(message: "unable to load sample: \(path)")
             }
             self.init(pointer: pointer, isOwned: true)
         }
 
-        /// Creates a sample referencing existing sample data. If
-        /// `freeWhenDone` is `true`, the OS frees `data` when the sample is
-        /// freed; otherwise the caller must keep `data` valid for the
-        /// sample's lifetime.
+        /// References `data` without copying; it must outlive the sample, which frees it
+        /// if `freeWhenDone`. Returns `nil` on failure.
         public convenience init?(data: UnsafeMutablePointer<UInt8>, format: Format,
                                  sampleRate: UInt32, byteCount: Int, freeWhenDone: Bool) {
             guard let pointer = AudioSample.api.pointee.newSampleFromData.unsafelyUnwrapped(
@@ -47,9 +45,8 @@ extension Sound {
             }
         }
 
-        /// Loads the file at `path` into this sample's buffer.
         public func load(path: String) throws(PlaydateError) {
-            let loaded = path.withPlaydateCString {
+            let loaded = path.withCString {
                 AudioSample.api.pointee.loadIntoSample.unsafelyUnwrapped(pointer, $0) != 0
             }
             if !loaded {
@@ -57,7 +54,7 @@ extension Sound {
             }
         }
 
-        /// The sample's raw data, format, and rate.
+        /// Data pointer (owned by the sample), format, rate in Hz, and length in bytes.
         public var data: (data: UnsafeMutablePointer<UInt8>?, format: Format,
                           sampleRate: UInt32, byteLength: UInt32) {
             var data: UnsafeMutablePointer<UInt8>?
@@ -67,13 +64,13 @@ extension Sound {
             return (data, Format(format), sampleRate, byteLength)
         }
 
-        /// The sample's length in seconds.
+        /// Length in seconds.
         public var length: Float {
             AudioSample.api.pointee.getLength.unsafelyUnwrapped(pointer)
         }
 
-        /// Decompresses an ADPCM sample to 16-bit PCM so it can be used in a
-        /// synth. Returns `false` if there is not enough memory.
+        /// Decompresses ADPCM to 16-bit PCM (4x memory), needed for synths and reverse
+        /// play. Returns `false` if out of memory.
         @discardableResult
         public func decompress() -> Bool {
             AudioSample.api.pointee.decompress.unsafelyUnwrapped(pointer) != 0
